@@ -110,19 +110,20 @@ def train_model():
         output_dir="models/checkpoints",
         evaluation_strategy="steps",
         save_strategy="steps",
-        eval_steps=500,
-        save_steps=500,
-        num_train_epochs=2,
-        per_device_train_batch_size=32,
+        eval_steps=300,
+        save_steps=300,
+        num_train_epochs=3,
+        per_device_train_batch_size=24,
         per_device_eval_batch_size=32,
-        learning_rate=2e-5,
+        learning_rate=5e-5,
         weight_decay=0.01,
-        warmup_ratio=0.1,
+        warmup_ratio=0.15,
         load_best_model_at_end=True,
         metric_for_best_model="f1_macro",
         greater_is_better=True,
         fp16=torch.cuda.is_available(),
-        gradient_accumulation_steps=2
+        gradient_accumulation_steps=2,
+        logging_steps=50
     )
 
     trainer = Trainer(
