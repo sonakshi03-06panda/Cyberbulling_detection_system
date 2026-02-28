@@ -60,6 +60,11 @@ def train_model():
     df["comment_text"] = df["comment_text"].apply(clean_text)
     df_small = df.sample(n=20000, random_state=42)
 
+    # calculate positive class weights to mitigate imbalance
+    label_counts = df_small[LABELS].sum()
+    total = len(df_small)
+    pos_weight = torch.tensor(((total - label_counts) / label_counts).values, dtype=torch.float).to(DEVICE)
+
     train_texts, val_texts, train_labels, val_labels = train_test_split(
         df_small["comment_text"].values,
         df_small[LABELS].values,
@@ -126,7 +131,17 @@ def train_model():
         logging_steps=50
     )
 
-    trainer = Trainer(
+    # override Trainer to use pos_weight in loss
+    class WeightedTrainer(Trainer):
+        def compute_loss(self, model, inputs, return_outputs=False):
+            labels = inputs.get("labels")
+            outputs = model(**inputs)
+            logits = outputs.logits
+            loss_fct = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            loss = loss_fct(logits, labels)
+            return (loss, outputs) if return_outputs else loss
+
+    trainer = WeightedTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
