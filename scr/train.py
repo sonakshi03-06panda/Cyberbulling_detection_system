@@ -29,6 +29,7 @@ from transformers import (
     Trainer,
     TrainingArguments
 )
+from focal_loss import FocalLoss
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -131,17 +132,17 @@ def train_model():
         logging_steps=50
     )
 
-    # override Trainer to use pos_weight in loss
-    class WeightedTrainer(Trainer):
+    # override Trainer to use Focal Loss for better handling of imbalanced data
+    class FocalTrainer(Trainer):
         def compute_loss(self, model, inputs, return_outputs=False):
             labels = inputs.get("labels")
             outputs = model(**inputs)
             logits = outputs.logits
-            loss_fct = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            loss_fct = FocalLoss(alpha=0.25, gamma=2.0, pos_weight=pos_weight)
             loss = loss_fct(logits, labels)
             return (loss, outputs) if return_outputs else loss
 
-    trainer = WeightedTrainer(
+    trainer = FocalTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
