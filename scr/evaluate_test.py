@@ -45,6 +45,7 @@ def evaluate_on_test():
 
     encodings = tokenizer(list(texts), truncation=True, padding=True, max_length=128)
 
+
     all_preds = []
     batch_size = 32
     from tqdm import tqdm
