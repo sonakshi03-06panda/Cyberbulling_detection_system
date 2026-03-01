@@ -24,13 +24,18 @@ def evaluate_on_test():
 
     # join by id
     df = test_df.merge(labels_df, on="id")
-    df = df[["comment_text"] + LABELS].dropna()
+    df = df[["comment_text"] + LABELS]
     df["comment_text"] = df["comment_text"].apply(clean_text)
 
-    texts = df["comment_text"].values
-    true_labels = df[LABELS].values
+    # filter out examples with any unlabeled (-1) fields
+    initial = len(df)
+    mask = ~(df[LABELS] == -1).any(axis=1)
+    df = df[mask].reset_index(drop=True)
 
-    print(f"Loaded {len(texts)} test examples")
+    texts = df["comment_text"].values
+    true_labels = df[LABELS].astype(int).values
+
+    print(f"Loaded {initial} test examples; evaluating on {len(texts)} fully-labelled examples")
 
     print("Loading model...")
     model = DistilBertForSequenceClassification.from_pretrained("models/final_model")
