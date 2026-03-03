@@ -51,7 +51,7 @@ class YouTubeCommentFetcher:
                     error_msg = str(api_error)
                     # If we've already fetched some comments, don't fail - just stop pagination
                     if len(comments) > 0 and ("400" in error_msg or "processingFailure" in error_msg):
-                        print(f"Pagination stopped after {page_count} pages ({len(comments)} comments fetched). {"Pagination token invalid or API error."}")
+                        print(f"Pagination stopped after {page_count} pages ({len(comments)} comments fetched). Pagination token invalid or API error.")
                         break
                     elif "403" in error_msg:
                         raise Exception("YouTube API quota exceeded or access denied. Try again later or check your API key.")
