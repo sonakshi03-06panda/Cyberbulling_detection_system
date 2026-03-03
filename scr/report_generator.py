@@ -16,10 +16,13 @@ class ToxicityReportGenerator:
     def __init__(self, output_dir: str = "reports"):
         """
         Args:
-            output_dir: Directory to save reports
+            output_dir: Directory to save reports (relative to project root)
         """
-        self.output_dir = output_dir
-        os.makedirs(output_dir, exist_ok=True)
+        # compute absolute path based on project root
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        abs_dir = os.path.join(project_root, output_dir)
+        self.output_dir = abs_dir
+        os.makedirs(self.output_dir, exist_ok=True)
     
     def generate_report(self, df: pd.DataFrame, url: str, title: str = None) -> str:
         """
@@ -280,7 +283,7 @@ class ToxicityReportGenerator:
         </div>
         
         <div class="footer">
-            Report generated automatically by Cyberbullying Detection System
+            Report generated automatically by Vibe Check by NSync❤️
         </div>
     </div>
     
