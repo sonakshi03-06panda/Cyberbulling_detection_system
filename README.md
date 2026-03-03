@@ -6,8 +6,8 @@ VibeCheck is a web-based tool designed to analyze YouTube video comments in real
 ## Core Features
 
 ### URL Input and Comment Fetching
-- Input field for YouTube video or post URLs
-- Integration with YouTube Data API v3 to fetch comments from the provided URL
+- Input field for YouTube video URLs
+- Integration with YouTube Data API v3 to fetch comments from the provided URL (requires a valid API key stored in `YOUTUBE_API_KEY`)
 - Display fetched comments in a readable format
 
 ### Toxicity Analysis
