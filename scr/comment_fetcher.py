@@ -44,9 +44,25 @@ class YouTubeCommentFetcher:
             )
             
             while request and len(comments) < max_results:
-                response = request.execute()
+                try:
+                    response = request.execute()
+                except Exception as api_error:
+                    error_msg = str(api_error)
+                    if "403" in error_msg:
+                        raise Exception("YouTube API quota exceeded or access denied. Try again later or check your API key.")
+                    elif "404" in error_msg:
+                        raise Exception(f"Video not found. Check if the URL is correct: {video_url}")
+                    elif "commentsDisabled" in error_msg or "disabled" in error_msg.lower():
+                        raise Exception("Comments are disabled on this video.")
+                    else:
+                        raise Exception(f"YouTube API error: {error_msg}")
                 
-                for item in response.get("items", []):
+                items = response.get("items", [])
+                if not items and len(comments) == 0:
+                    # No items on first page - likely comments disabled or API issue
+                    raise Exception("No comments found. The video may have comments disabled or is unavailable.")
+                
+                for item in items:
                     snippet = item["snippet"]["topLevelComment"]["snippet"]
                     # some videos may not include likeCount or replyCount in snippet
                     comments.append({
@@ -70,7 +86,8 @@ class YouTubeCommentFetcher:
                 else:
                     break
         except Exception as e:
-            print(f"Error fetching YouTube comments: {e}")
+            # Re-raise with context
+            raise Exception(f"Failed to fetch comments: {str(e)}")
         
         return comments[:max_results]
 
