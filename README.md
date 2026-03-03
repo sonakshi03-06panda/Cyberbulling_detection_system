@@ -11,7 +11,7 @@ VibeCheck is a web-based tool designed to analyze YouTube video comments in real
 - Display fetched comments in a readable format
 
 ### Toxicity Analysis
-- Integration with alternative toxicity detection models (Hugging Face's `unitary/toxic-bert` or OpenAI's moderation endpoint)
+- Integration with local toxicity detection models (e.g. Hugging Face `unitary/toxic-bert`)
 - Analyze each fetched comment for toxicity levels using the selected API
 - Color-coded display system for toxicity levels:
   - Low toxicity (green)
@@ -20,7 +20,7 @@ VibeCheck is a web-based tool designed to analyze YouTube video comments in real
 
 ### API Configuration
 - Modal interface for users to input and store their API keys
-- Support for Hugging Face or OpenAI API key configuration
+- Support for local Hugging Face model configuration
 - Secure storage of API credentials for toxicity analysis
 
 ### Reporting and Flagging
@@ -42,7 +42,7 @@ VibeCheck is a web-based tool designed to analyze YouTube video comments in real
 
 ## Backend Operations
 - Fetch comments from YouTube Data API v3
-- Process comments through selected toxicity detection API (Hugging Face or OpenAI)
+- Process comments through the local toxicity detection model
 - Normalize toxicity scores and severity levels to consistent format ("low", "medium", "high")
 - Handle YouTube API reporting and flagging requests
 - Generate and store toxicity reports
