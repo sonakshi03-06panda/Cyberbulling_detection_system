@@ -1,0 +1,108 @@
+"""
+Fetch comments from YouTube.
+Requires: google-api-python-client
+"""
+
+import os
+from typing import List, Dict
+
+
+class YouTubeCommentFetcher:
+    """Fetch comments from YouTube videos."""
+    
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        try:
+            from googleapiclient.discovery import build
+            self.youtube = build("youtube", "v3", developerKey=api_key)
+        except ImportError:
+            raise ImportError("Install google-api-python-client: pip install google-api-python-client")
+    
+    def get_video_id_from_url(self, url: str) -> str:
+        """Extract video ID from YouTube URL."""
+        if "youtube.com/watch?v=" in url:
+            return url.split("v=")[1].split("&")[0]
+        elif "youtu.be/" in url:
+            return url.split("youtu.be/")[1].split("?")[0]
+        else:
+            raise ValueError(f"Invalid YouTube URL: {url}")
+    
+    def fetch_comments(self, video_url: str, max_results: int = 1000) -> List[Dict]:
+        """
+        Fetch comments from a YouTube video.
+        Returns list of dicts with keys: text, author, timestamp, likes, replies
+        """
+        video_id = self.get_video_id_from_url(video_url)
+        comments = []
+        try:
+            request = self.youtube.commentThreads().list(
+                part="snippet",
+                videoId=video_id,
+                maxResults=min(100, max_results),
+                textFormat="plainText",
+                order="relevance"
+            )
+            
+            while request and len(comments) < max_results:
+                response = request.execute()
+                
+                for item in response.get("items", []):
+                    snippet = item["snippet"]["topLevelComment"]["snippet"]
+                    # some videos may not include likeCount or replyCount in snippet
+                    comments.append({
+                        "platform": "YouTube",
+                        "video_url": video_url,
+                        "text": snippet.get("textDisplay", ""),
+                        "author": snippet.get("authorDisplayName", ""),
+                        "timestamp": snippet.get("publishedAt", ""),
+                        "likes": snippet.get("likeCount", 0),
+                        "replies": snippet.get("replyCount", 0)
+                    })
+                
+                if "nextPageToken" in response and len(comments) < max_results:
+                    request = self.youtube.commentThreads().list(
+                        part="snippet",
+                        videoId=video_id,
+                        pageToken=response["nextPageToken"],
+                        maxResults=min(100, max_results - len(comments)),
+                        textFormat="plainText"
+                    )
+                else:
+                    break
+        except Exception as e:
+            print(f"Error fetching YouTube comments: {e}")
+        
+        return comments[:max_results]
+
+
+class CommentFetcher:
+    """Simple interface for fetching YouTube comments."""
+
+    def __init__(self, youtube_api_key: str = None):
+        self.youtube_fetcher = None
+        if youtube_api_key:
+            self.youtube_fetcher = YouTubeCommentFetcher(youtube_api_key)
+
+    def fetch_comments(self, url: str, max_results: int = 1000) -> List[Dict]:
+        """Fetch comments from a YouTube URL."""
+        if "youtube.com" in url or "youtu.be" in url:
+            if not self.youtube_fetcher:
+                raise ValueError("YouTube API key not configured")
+            return self.youtube_fetcher.fetch_comments(url, max_results)
+        else:
+            raise ValueError(f"Unsupported platform for URL: {url}")
+
+
+if __name__ == "__main__":
+    # Example usage (requires credentials)
+    import os
+    from dotenv import load_dotenv
+    
+    load_dotenv()
+    
+    yt_key = os.getenv("YOUTUBE_API_KEY")
+    fetcher = CommentFetcher(yt_key)
+    
+    # Example
+    # comments = fetcher.fetch_comments("https://www.youtube.com/watch?v=...")
+    # print(f"Fetched {len(comments)} comments")
