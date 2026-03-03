@@ -111,8 +111,6 @@ class ToxicityReportGenerator:
     <title>{title}</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
@@ -128,7 +126,6 @@ class ToxicityReportGenerator:
         }}
         h1 {{ 
             color: #333; 
-            margin-bottom: 10px;
             border-bottom: 3px solid #667eea;
             padding-bottom: 15px;
         }}
