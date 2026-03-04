@@ -278,10 +278,6 @@ class ToxicityReportGenerator:
             <h3>🔴 Top {min(10, len(stats['top_toxic']))} Most Toxic Comments</h3>
             {''.join([self._build_comment_item(c, severity_colors, severity_labels_map) for c in stats['top_toxic']])}
         </div>
-        
-        <div class="footer">
-            Report generated automatically by Vibe Check by NSync❤️
-        </div>
     </div>
     
     <script>
