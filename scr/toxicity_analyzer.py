@@ -252,5 +252,4 @@ if __name__ == "__main__":
     for r in results:
         print(f"Text: {r['text'][:50]}...")
         print(f"  Toxic: {r['is_toxic']}, Labels: {r['toxic_labels']}, Severity: {r['severity']}\n")
-
-
+        
