@@ -448,7 +448,19 @@ HTML_TEMPLATE = """
                         <span class="badge badge-info">${data.total_comments} Comments</span>
                         <span class="badge badge-danger">${data.toxic_comments} Toxic (${data.toxic_rate.toFixed(1)}%)</span>
                         <span class="badge badge-warning">Confidence: ${(data.avg_confidence * 100).toFixed(1)}%</span>
+                        <hr style="margin: 20px 0; border: 1px solid #ddd;">
                     `;
+                    
+                    // Display full report in an iframe
+                    const reportFrame = document.createElement('iframe');
+                    reportFrame.src = data.report_path;
+                    reportFrame.style.width = '100%';
+                    reportFrame.style.height = '2000px';
+                    reportFrame.style.border = 'none';
+                    reportFrame.style.borderRadius = '8px';
+                    reportFrame.style.marginTop = '20px';
+                    document.getElementById('results').appendChild(reportFrame);
+                    
                     document.getElementById('results').style.display = 'block';
                     document.getElementById('reportsSection').style.display = 'none';
                 } else {
