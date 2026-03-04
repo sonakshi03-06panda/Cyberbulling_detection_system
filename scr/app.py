@@ -378,16 +378,6 @@ HTML_TEMPLATE = """
                         <small style="color: #666; display: block; margin-top: 5px;">Enter 0 to analyze all comments, or specify a number limit</small>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="title">Report Title (Optional)</label>
-                        <input 
-                            type="text" 
-                            id="title" 
-                            name="title" 
-                            placeholder="e.g., My Video Analysis"
-                        >
-                    </div>
-                    
                     <div class="loading" id="loading">
                         <div class="spinner"></div>
                         <p>Analyzing comments...</p>
@@ -423,7 +413,6 @@ HTML_TEMPLATE = """
             
             const url = document.getElementById('url').value;
             const maxComments = document.getElementById('maxComments').value;
-            const title = document.getElementById('title').value;
             const analyzeBtn = document.getElementById('analyzeBtn');
             
             // Show loading
@@ -437,7 +426,7 @@ HTML_TEMPLATE = """
                 const response = await fetch('/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, maxComments, title })
+                    body: JSON.stringify({ url, maxComments })
                 });
                 
                 const data = await response.json();
@@ -519,7 +508,12 @@ def analyze():
         # If 0, fetch all comments (set to a very high number)
         if max_comments <= 0:
             max_comments = 999999
-        title = data.get("title", f"Toxicity Report - {url}")
+        
+        # Generate report number based on existing reports
+        import glob
+        report_files = glob.glob(os.path.join(REPORT_DIR, "toxicity_report_*.html"))
+        report_number = len(report_files) + 1
+        title = f"Toxicity Report #{report_number}"
         
         if not url:
             return jsonify({"success": False, "error": "URL is required"})
