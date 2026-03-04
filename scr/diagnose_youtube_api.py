@@ -15,7 +15,7 @@ def diagnose():
     # Check 1: API Key is set
     print("\n[CHECK 1] YOUTUBE_API_KEY Configuration")
     print("-" * 80)
-    load_dotenv()
+    load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
     api_key = os.getenv("YOUTUBE_API_KEY")
     
     if not api_key:
