@@ -31,6 +31,7 @@ class YouTubeCommentFetcher:
         """
         Fetch comments from a YouTube video.
         Returns list of dicts with keys: text, author, timestamp, likes, replies
+        Fetches ALL available comments if max_results is very high (e.g., 999999)
         """
         video_id = self.get_video_id_from_url(video_url)
         comments = []
@@ -38,20 +39,20 @@ class YouTubeCommentFetcher:
             request = self.youtube.commentThreads().list(
                 part="snippet",
                 videoId=video_id,
-                maxResults=min(100, max_results),
+                maxResults=100,  # Always request 100 per page (API max)
                 textFormat="plainText",
                 order="relevance"
             )
             
             page_count = 0
-            while request and len(comments) < max_results:
+            while request:  # Continue while there's a request, not limited by max_results
                 try:
                     response = request.execute()
                 except Exception as api_error:
                     error_msg = str(api_error)
                     # If we've already fetched some comments, don't fail - just stop pagination
                     if len(comments) > 0 and ("400" in error_msg or "processingFailure" in error_msg):
-                        print(f"Pagination stopped after {page_count} pages ({len(comments)} comments fetched). Pagination token invalid or API error.")
+                        print(f"[INFO] Pagination stopped after {page_count} pages ({len(comments)} comments fetched). Stopping due to API limitations.")
                         break
                     elif "403" in error_msg:
                         raise Exception("YouTube API quota exceeded or access denied. Try again later or check your API key.")
@@ -80,22 +81,31 @@ class YouTubeCommentFetcher:
                         "likes": snippet.get("likeCount", 0),
                         "replies": snippet.get("replyCount", 0)
                     })
+                    
+                    # Stop if we've reached max_results
+                    if len(comments) >= max_results:
+                        print(f"[INFO] Reached max_results limit of {max_results} comments")
+                        return comments[:max_results]
                 
-                if "nextPageToken" in response and len(comments) < max_results:
+                # Continue to next page if available
+                if "nextPageToken" in response:
                     try:
                         request = self.youtube.commentThreads().list(
                             part="snippet",
                             videoId=video_id,
                             pageToken=response["nextPageToken"],
-                            maxResults=min(100, max_results - len(comments)),
+                            maxResults=100,
                             textFormat="plainText",
                             order="relevance"
                         )
+                        print(f"[INFO] Fetched {len(comments)} comments so far (page {page_count})...")
                     except Exception as e:
                         # If pagination token fails, just return what we have
-                        print(f"Failed to create pagination request: {str(e)}")
+                        print(f"[WARNING] Failed to create pagination request: {str(e)}")
                         break
                 else:
+                    # No more pages available
+                    print(f"[INFO] Reached end of comments. Total: {len(comments)} comments fetched across {page_count} pages.")
                     break
         except Exception as e:
             # Re-raise with context
