@@ -12,7 +12,10 @@ from dotenv import load_dotenv
 
 # load environment variables from .env (if present)
 # Look for .env in parent directory (project root)
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+print(f"[DEBUG] Loading .env from: {env_path}")
+print(f"[DEBUG] .env file exists: {os.path.exists(env_path)}")
+load_dotenv(env_path)
 
 from comment_fetcher import CommentFetcher
 from toxicity_analyzer import ToxicityAnalyzer, analyze_comments
