@@ -29,53 +29,25 @@ def clean_text(text: str) -> str:
 
 def _is_likely_quote_or_reference(text: str) -> bool:
     """
-    Detect if comment is likely a quote from video or casual reference.
-    Quotes/references are less likely to express genuine toxic intent.
+    Detect if comment is likely a quote from video based on formatting.
+    Quotes contain quotation marks or quote-like formatting.
     """
     text_lower = text.lower()
     
-    # Movie/TV show context markers (John Wick, quotes, references)
-    movie_markers = [
-        "john wick",
-        "-john wick",
-        "never kill a man's dog",
-        "kill my dog",
-        "killed my dog",
-        "slaying dog",
-        "man's dog",
-        "kill your whole city",
-        "courting death",
-        "fed up with his own life",
-        "lesson :-",
-        "like begging to die",
-        "unless you wanna die",
-        "oh shit you killed my dog",
-        "kill his family",
-        "kill his dog"
-    ]
+    # Has quotation marks (single or double, opening or closing)
+    if any(char in text for char in ['"', "'", '"', '"', '„', '"', "'"]):
+        return True
     
-    if any(marker in text_lower for marker in movie_markers):
+    # Quoted text with attribution marker (- or —)
+    if ('—' in text or ' - ' in text) and (text.startswith('"') or text.startswith("'")):
         return True
     
     # Excessive punctuation/repetition = likely quoting or mimicking
     if re.search(r'([!?r.]{4,})', text):  # 4+ repeated ! ? . or r (like "barrrrr")
         return True
     
-    # All caps with exclamation = likely quoting
+    # All caps with multiple exclamations = likely quoting dramatic moment
     if text.upper() == text and text.count('!') >= 2:
-        return True
-    
-    # Very short + exclamation = likely quote
-    if len(text) < 40 and text.count('!') >= 2:
-        return True
-    
-    # Common video quote patterns
-    if any(phrase in text_lower for phrase in ["gimme", "give me", "come on", "oh man", "oh shit"]):
-        if len(text) < 100:  # Short quote-like format
-            return True
-    
-    # Quotes in quotation marks with attribution
-    if '""' in text or (text.startswith('"') and '—' in text) or (text.startswith('"') and '-' in text and text.endswith('"')):
         return True
     
     return False
