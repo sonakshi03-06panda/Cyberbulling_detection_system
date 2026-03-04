@@ -52,6 +52,8 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vibe Check - YouTube Safety Monitor</title>
+    <!-- Chart.js for report visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -463,13 +465,19 @@ HTML_TEMPLATE = """
                     
                     document.getElementById('results').appendChild(reportDiv);
                     
-                    // Re-execute scripts in the inserted HTML (for Chart.js)
-                    const scripts = reportDoc.querySelectorAll('script');
-                    scripts.forEach(script => {
-                        const newScript = document.createElement('script');
-                        newScript.textContent = script.textContent;
-                        reportDiv.appendChild(newScript);
-                    });
+                    // Wait a moment for DOM to settle, then execute scripts
+                    setTimeout(() => {
+                        const scripts = reportDoc.querySelectorAll('script');
+                        scripts.forEach(script => {
+                            // Skip external script tags (like Chart.js which is already loaded)
+                            if (!script.src) {
+                                const newScript = document.createElement('script');
+                                newScript.textContent = script.textContent;
+                                newScript.async = false;
+                                document.body.appendChild(newScript);
+                            }
+                        });
+                    }, 100);  // Small delay to ensure DOM is ready
                     
                     document.getElementById('results').style.display = 'block';
                     document.getElementById('reportsSection').style.display = 'none';
@@ -541,7 +549,7 @@ def analyze():
         
         # Analyze
         print(f"Analyzing {len(comments)} comments...")
-        df = analyze_comments(comments)
+        df = analyze_comments(comments, analyzer)
         
         # Generate report and get HTML content
         print("Generating report...")
@@ -591,4 +599,6 @@ def download(filename):
 
 if __name__ == "__main__":
     init_services()
-    app.run(debug=True, port=5000)
+    # Disable auto-reload to prevent interruptions during model inference
+    # (torch operations were triggering false positives for file changes)
+    app.run(debug=True, port=5000, use_reloader=False)
