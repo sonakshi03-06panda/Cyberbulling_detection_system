@@ -6,7 +6,7 @@ Usage: python batch_analyze.py urls.txt
 import sys
 import os
 from comment_fetcher import CommentFetcher
-from toxicity_analyzer import analyze_comments
+from toxicity_analyzer import analyze_comments, ToxicityAnalyzer
 from report_generator import ToxicityReportGenerator
 import json
 
@@ -17,6 +17,9 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 YOUTUBE_KEY = os.getenv("YOUTUBE_API_KEY")
 fetcher = CommentFetcher(YOUTUBE_KEY)
 report_gen = ToxicityReportGenerator("reports")
+
+# Initialize analyzer once
+analyzer = ToxicityAnalyzer("models/final_model")
 
 
 def batch_analyze(file_path: str, max_comments: int = 500):
@@ -54,7 +57,7 @@ def batch_analyze(file_path: str, max_comments: int = 500):
             
             # Analyze
             print(f"  Analyzing toxicity...")
-            df = analyze_comments(comments, "models/final_model")
+            df = analyze_comments(comments, analyzer)
             
             # Generate report
             print(f"  Generating report...")
