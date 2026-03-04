@@ -367,15 +367,15 @@ HTML_TEMPLATE = """
                     </div>
                     
                     <div class="form-group">
-                        <label for="maxComments">Max Comments to Analyze</label>
+                        <label for="maxComments">Max Comments to Analyze (0 = All)</label>
                         <input 
                             type="number" 
                             id="maxComments" 
                             name="maxComments" 
-                            value="500" 
-                            min="10" 
-                            max="5000"
+                            value="0" 
+                            min="0"
                         >
+                        <small style="color: #666; display: block; margin-top: 5px;">Enter 0 to analyze all comments, or specify a number limit</small>
                     </div>
                     
                     <div class="form-group">
@@ -482,7 +482,10 @@ def analyze():
     try:
         data = request.json
         url = data.get("url")
-        max_comments = int(data.get("maxComments", 500))
+        max_comments = int(data.get("maxComments", 0))
+        # If 0, fetch all comments (set to a very high number)
+        if max_comments <= 0:
+            max_comments = 999999
         title = data.get("title", f"Toxicity Report - {url}")
         
         if not url:
