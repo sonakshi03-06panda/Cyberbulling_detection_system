@@ -11,7 +11,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # load environment variables from .env (if present)
-load_dotenv()
+# Look for .env in parent directory (project root)
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 from comment_fetcher import CommentFetcher
 from toxicity_analyzer import ToxicityAnalyzer, analyze_comments
