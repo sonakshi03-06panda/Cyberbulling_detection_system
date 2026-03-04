@@ -32,6 +32,31 @@ def _is_likely_quote_or_reference(text: str) -> bool:
     Detect if comment is likely a quote from video or casual reference.
     Quotes/references are less likely to express genuine toxic intent.
     """
+    text_lower = text.lower()
+    
+    # Movie/TV show context markers (John Wick, quotes, references)
+    movie_markers = [
+        "john wick",
+        "-john wick",
+        "never kill a man's dog",
+        "kill my dog",
+        "killed my dog",
+        "slaying dog",
+        "man's dog",
+        "kill your whole city",
+        "courting death",
+        "fed up with his own life",
+        "lesson :-",
+        "like begging to die",
+        "unless you wanna die",
+        "oh shit you killed my dog",
+        "kill his family",
+        "kill his dog"
+    ]
+    
+    if any(marker in text_lower for marker in movie_markers):
+        return True
+    
     # Excessive punctuation/repetition = likely quoting or mimicking
     if re.search(r'([!?r.]{4,})', text):  # 4+ repeated ! ? . or r (like "barrrrr")
         return True
@@ -45,9 +70,13 @@ def _is_likely_quote_or_reference(text: str) -> bool:
         return True
     
     # Common video quote patterns
-    if any(phrase in text.lower() for phrase in ["gimme", "give me", "come on", "oh man", "oh shit"]):
+    if any(phrase in text_lower for phrase in ["gimme", "give me", "come on", "oh man", "oh shit"]):
         if len(text) < 100:  # Short quote-like format
             return True
+    
+    # Quotes in quotation marks with attribution
+    if '""' in text or (text.startswith('"') and '—' in text) or (text.startswith('"') and '-' in text and text.endswith('"')):
+        return True
     
     return False
 
@@ -89,7 +118,7 @@ class ToxicityAnalyzer:
             "obscene": 0.35           # Reduced from 0.4 - profanity alone is minimal concern
         }
     
-    def _determine_toxicity(self, toxic_labels: List[str]) -> bool:
+    def _determine_toxicity(self, toxic_labels: List[str], is_quote: bool = False) -> bool:
         """
         Determine if comment is truly toxic based on label combinations.
         VERY STRICT logic to minimize false positives from profanity/quotes.
@@ -98,8 +127,18 @@ class ToxicityAnalyzer:
         if not toxic_labels:
             return False
         
-        # Direct threats are ALWAYS toxic
-        if "threat" in toxic_labels:
+        # If it's a detected quote, almost nothing is toxic (quotes express reactions, not threats)
+        # Exception: only very serious threats with other signals
+        if is_quote:
+            # Quotes with ONLY threat label = not genuine threat (it's a movie reference)
+            if toxic_labels == ["threat"]:
+                return False
+            # Quotes with threat + other labels might still not be genuine
+            if "threat" in toxic_labels and len(toxic_labels) <= 2:
+                return False
+        
+        # Direct threats are ALWAYS toxic (but see quote handling above)
+        if "threat" in toxic_labels and not is_quote:
             return True
         
         # Severe_toxic at high threshold (0.65+) indicates GENUINELY severe content (not just quotes)
@@ -168,7 +207,7 @@ class ToxicityAnalyzer:
         is_quote = _is_likely_quote_or_reference(text)
         
         # Determine true toxicity using combination logic
-        is_toxic = self._determine_toxicity(toxic_labels)
+        is_toxic = self._determine_toxicity(toxic_labels, is_quote=is_quote)
         
         # If it's clearly a quote and doesn't have threat/severe signals, don't flag it
         if is_quote and is_toxic and "threat" not in toxic_labels and "severe_toxic" not in toxic_labels:
@@ -236,8 +275,11 @@ class ToxicityAnalyzer:
                 if probs[j] > self.label_thresholds[self.labels[j]]
             ]
             
+            # Check if this looks like a video quote/reference
+            is_quote = _is_likely_quote_or_reference(text)
+            
             # Determine true toxicity using combination logic
-            is_toxic = self._determine_toxicity(toxic_labels)
+            is_toxic = self._determine_toxicity(toxic_labels, is_quote=is_quote)
             
             # Calculate weighted confidence for true toxic labels
             if is_toxic:
