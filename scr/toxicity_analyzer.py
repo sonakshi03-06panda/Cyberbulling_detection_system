@@ -27,6 +27,31 @@ def clean_text(text: str) -> str:
     return text
 
 
+def _is_likely_quote_or_reference(text: str) -> bool:
+    """
+    Detect if comment is likely a quote from video or casual reference.
+    Quotes/references are less likely to express genuine toxic intent.
+    """
+    # Excessive punctuation/repetition = likely quoting or mimicking
+    if re.search(r'([!?r.]{4,})', text):  # 4+ repeated ! ? . or r (like "barrrrr")
+        return True
+    
+    # All caps with exclamation = likely quoting
+    if text.upper() == text and text.count('!') >= 2:
+        return True
+    
+    # Very short + exclamation = likely quote
+    if len(text) < 40 and text.count('!') >= 2:
+        return True
+    
+    # Common video quote patterns
+    if any(phrase in text.lower() for phrase in ["gimme", "give me", "come on", "oh man", "oh shit"]):
+        if len(text) < 100:  # Short quote-like format
+            return True
+    
+    return False
+
+
 class ToxicityAnalyzer:
     """Analyze comments for toxicity using a DistilBERT model."""
     
@@ -46,59 +71,81 @@ class ToxicityAnalyzer:
         
         # Label-specific thresholds: serious toxicity is easier to trigger, mild offense requires higher confidence
         self.label_thresholds = {
-            "threat": 0.30,           # Serious - lowest threshold
-            "severe_toxic": 0.35,     # Serious - low threshold
-            "identity_hate": 0.35,    # Serious - low threshold
-            "toxic": 0.60,            # Higher threshold - base toxic label is unreliable on its own
-            "insult": 0.70,           # Very high threshold - easily confused with assertive speech
-            "obscene": 0.80           # Highest threshold - curse words in casual context must be very high confidence
+            "threat": 0.25,           # Serious - lowest threshold (most important)
+            "severe_toxic": 0.65,     # HEAVILY INCREASED from 0.30 - profanity quotes shouldn't trigger this
+            "identity_hate": 0.70,    # Increased from 0.65 - requires very high confidence
+            "toxic": 0.80,            # INCREASED from 0.70 - stricter general toxicity detection (profanity ≠ toxic)
+            "insult": 0.85,           # Increased from 0.80 - very high threshold
+            "obscene": 0.90           # Increased from 0.85 - highest threshold - curse words in casual context must be very high confidence
         }
         
         # Label weights for severity calculation and confidence scoring
         self.label_weights = {
-            "threat": 1.0,
-            "severe_toxic": 1.0,
-            "identity_hate": 0.9,
-            "toxic": 0.7,
-            "insult": 0.5,
-            "obscene": 0.4
+            "threat": 1.0,            # Maximum weight - direct threats are serious
+            "severe_toxic": 0.95,     # Very high - severe toxicity
+            "identity_hate": 0.60,    # Reduced from 0.9 - mention of identity alone shouldn't dominate (requires hateful intent)
+            "toxic": 0.75,            # Increased from 0.7 - general toxicity is important
+            "insult": 0.55,           # Reduced from 0.5 - insults are less serious than harassment
+            "obscene": 0.35           # Reduced from 0.4 - profanity alone is minimal concern
         }
     
     def _determine_toxicity(self, toxic_labels: List[str]) -> bool:
         """
         Determine if comment is truly toxic based on label combinations.
-        Reduces false positives from curse words alone.
+        VERY STRICT logic to minimize false positives from profanity/quotes.
+        Only flags comments with clear harmful intent, not just strong language.
         """
         if not toxic_labels:
             return False
         
-        # Serious labels trigger toxicity immediately
-        serious = ["threat", "severe_toxic", "identity_hate"]
-        if any(l in serious for l in toxic_labels):
+        # Direct threats are ALWAYS toxic
+        if "threat" in toxic_labels:
             return True
         
-        # Mild labels alone are not toxic
-        mild = ["obscene", "insult"]
-        if all(l in mild for l in toxic_labels):
+        # Severe_toxic at high threshold (0.65+) indicates GENUINELY severe content (not just quotes)
+        if "severe_toxic" in toxic_labels:
+            # Still double-check: if ONLY severe_toxic with mild labels, might be quoted
+            if all(l in ["severe_toxic", "obscene", "insult"] for l in toxic_labels):
+                # If it has toxic too, it's more likely genuine
+                return "toxic" in toxic_labels
+            return True
+        
+        # Single label cases - almost never toxic (these are high threshold labels now)
+        if len(toxic_labels) == 1:
             return False
         
-        # "toxic" label without serious context is often unreliable
-        # Only consider toxic if it comes with other signals or serious intent
-        if toxic_labels == ["toxic"]:
-            # Single "toxic" label requires higher confidence in our model
-            # We'll use the max confidence threshold
+        # Multiple labels required beyond this point
+        
+        # Insult + identity_hate (without severe signals) = not toxic
+        # (Could be assertive speech about a group, not hateful)
+        if set(toxic_labels) == {"insult", "identity_hate"}:
             return False
         
-        # "toxic" + mild offense = usually safe
-        if "toxic" in toxic_labels and all(l in mild + ["toxic"] for l in toxic_labels):
+        # Toxic + any single mild label = not toxic
+        # (Generic negativity, not targeted harassment)
+        if "toxic" in toxic_labels and len([l for l in toxic_labels if l in ["insult", "obscene"]]) == 1:
             return False
         
-        # Default: has multi-label toxicity signals
-        return True
+        # Toxic + identity_hate (no other serious labels) = not necessarily toxic
+        # (Could be political speech, not hate speech)
+        if set(toxic_labels) == {"toxic", "identity_hate"}:
+            return False
+        
+        # 3+ serious labels = very likely toxic
+        serious = ["toxic", "insult", "identity_hate"]
+        if sum(1 for l in toxic_labels if l in serious) >= 3:
+            return True
+        
+        # Toxic + insult + something else = toxic
+        if "toxic" in toxic_labels and "insult" in toxic_labels and len(toxic_labels) >= 3:
+            return True
+        
+        return False
     
     def classify_comment(self, text: str) -> Dict:
         """
         Classify a single comment with smart thresholds and label weighting.
+        Considers context (quotes/references) to avoid false positives.
         """
         # Local HF inference
         clean = clean_text(text)
@@ -117,8 +164,16 @@ class ToxicityAnalyzer:
             if probs[i] > self.label_thresholds[self.labels[i]]
         ]
         
+        # Check if this looks like a video quote/reference
+        is_quote = _is_likely_quote_or_reference(text)
+        
         # Determine true toxicity using combination logic
         is_toxic = self._determine_toxicity(toxic_labels)
+        
+        # If it's clearly a quote and doesn't have threat/severe signals, don't flag it
+        if is_quote and is_toxic and "threat" not in toxic_labels and "severe_toxic" not in toxic_labels:
+            is_toxic = False
+            toxic_labels = []  # Clear the labels since it's likely just a quote
         
         # Calculate weighted confidence for true toxic labels only
         if is_toxic:
@@ -148,13 +203,13 @@ class ToxicityAnalyzer:
             "max_confidence": max_confidence
         }
     
-    def classify_batch(self, texts: List[str], batch_size: int = 32) -> List[Dict]:
+    def classify_batch(self, texts: List[str], batch_size: int = 64) -> List[Dict]:
         """
         Classify multiple comments with smart thresholds and label weighting.
         
         Args:
             texts: List of comment texts
-            batch_size: Batch size for inference
+            batch_size: Batch size for inference (increased to 64 for faster processing)
         
         Returns:
             List of classification dicts
@@ -214,17 +269,19 @@ class ToxicityAnalyzer:
         return results
 
 
-def analyze_comments(comments: List[Dict]) -> pd.DataFrame:
+def analyze_comments(comments: List[Dict], analyzer: 'ToxicityAnalyzer' = None) -> pd.DataFrame:
     """
     Analyze a list of comments fetched from YouTube.
     
     Args:
         comments: List of comment dicts (from CommentFetcher)
+        analyzer: Optional pre-loaded ToxicityAnalyzer instance. If None, creates a new one.
     
     Returns:
         DataFrame with original data + toxicity analysis
     """
-    analyzer = ToxicityAnalyzer()
+    if analyzer is None:
+        analyzer = ToxicityAnalyzer()
     
     texts = [c["text"] for c in comments]
     classifications = analyzer.classify_batch(texts)
