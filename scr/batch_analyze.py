@@ -12,7 +12,7 @@ import json
 
 # Load API keys
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 YOUTUBE_KEY = os.getenv("YOUTUBE_API_KEY")
 fetcher = CommentFetcher(YOUTUBE_KEY)
