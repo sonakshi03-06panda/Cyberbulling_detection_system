@@ -451,15 +451,36 @@ HTML_TEMPLATE = """
                         <hr style="margin: 20px 0; border: 1px solid #ddd;">
                     `;
                     
-                    // Display full report in an iframe
-                    const reportFrame = document.createElement('iframe');
-                    reportFrame.src = data.report_path;
-                    reportFrame.style.width = '100%';
-                    reportFrame.style.height = '2000px';
-                    reportFrame.style.border = 'none';
-                    reportFrame.style.borderRadius = '8px';
-                    reportFrame.style.marginTop = '20px';
-                    document.getElementById('results').appendChild(reportFrame);
+                    // Extract body content from the report HTML
+                    const parser = new DOMParser();
+                    const reportDoc = parser.parseFromString(data.report_html, 'text/html');
+                    
+                    // Extract styles from report
+                    const styles = reportDoc.querySelectorAll('style');
+                    styles.forEach(style => {
+                        const newStyle = document.createElement('style');
+                        newStyle.textContent = style.textContent;
+                        document.head.appendChild(newStyle);
+                    });
+                    
+                    // Extract body content
+                    const bodyContent = reportDoc.body.innerHTML;
+                    
+                    // Insert report HTML directly into the page
+                    const reportDiv = document.createElement('div');
+                    reportDiv.id = 'reportContent';
+                    reportDiv.innerHTML = bodyContent;
+                    reportDiv.style.marginTop = '20px';
+                    
+                    document.getElementById('results').appendChild(reportDiv);
+                    
+                    // Re-execute scripts in the inserted HTML (for Chart.js)
+                    const scripts = reportDoc.querySelectorAll('script');
+                    scripts.forEach(script => {
+                        const newScript = document.createElement('script');
+                        newScript.textContent = script.textContent;
+                        reportDiv.appendChild(newScript);
+                    });
                     
                     document.getElementById('results').style.display = 'block';
                     document.getElementById('reportsSection').style.display = 'none';
@@ -528,16 +549,21 @@ def analyze():
         print(f"Analyzing {len(comments)} comments...")
         df = analyze_comments(comments)
         
-        # Generate report
+        # Generate report and get HTML content
         print("Generating report...")
         report_path = report_gen.generate_report(df, url, title)
+        
+        # Get the HTML content of the report
+        with open(report_path, 'r', encoding='utf-8') as f:
+            report_html = f.read()
         
         # Calculate stats
         stats = {
             "total_comments": len(df),
             "toxic_comments": int(df["is_toxic"].sum()),
             "toxic_rate": float(100 * df["is_toxic"].sum() / len(df)) if len(df) > 0 else 0,
-            "avg_confidence": float(df["max_confidence"].mean())
+            "avg_confidence": float(df["max_confidence"].mean()),
+            "report_html": report_html  # Include full HTML in response
         }
         
         return jsonify({
