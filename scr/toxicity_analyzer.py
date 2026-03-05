@@ -27,6 +27,36 @@ def clean_text(text: str) -> str:
     return text
 
 
+def _is_toxic_word_in_caps_or_quotes(text: str, toxic_labels: List[str]) -> bool:
+    """
+    Check if toxic words are contained within ALL CAPS or inside quotation marks.
+    Such instances are typically not abusive (quoting or emphasizing, not targeting anyone).
+    
+    Returns True if ALL detected toxic words are only found in caps or quotes.
+    """
+    if not toxic_labels:
+        return False
+    
+    # Check for text segments in quotes
+    quoted_segments = re.findall(r'["\']([^"\']*)["\']', text)
+    caps_segments = re.findall(r'\b([A-Z]{2,})\b', text)  # Words with 2+ caps
+    all_caps_words = re.findall(r'\b([A-Z][A-Z0-9_]*)\b', text)  # All caps words/phrases
+    
+    # Combine all non-abusive contexts
+    non_abusive_contexts = quoted_segments + [' '.join(caps_segments)]
+    
+    # If most of the text is in caps or quotes, it's likely not abusive
+    if text.isupper() and len(text) > 5:  # Whole comment in caps
+        return True
+    
+    # Check if text appears to be primarily quoted
+    quote_chars_count = sum(text.count(char) for char in ['"', "'", '"', '"'])
+    if quote_chars_count >= 2 and len(quoted_segments) > 0:  # Has opening and closing quotes
+        return True
+    
+    return False
+
+
 def _is_likely_quote_or_reference(text: str) -> bool:
     """
     Detect if comment is likely a quote from video based on formatting.
@@ -178,13 +208,18 @@ class ToxicityAnalyzer:
         # Check if this looks like a video quote/reference
         is_quote = _is_likely_quote_or_reference(text)
         
-        # Determine true toxicity using combination logic
-        is_toxic = self._determine_toxicity(toxic_labels, is_quote=is_quote)
-        
-        # If it's clearly a quote and doesn't have threat/severe signals, don't flag it
-        if is_quote and is_toxic and "threat" not in toxic_labels and "severe_toxic" not in toxic_labels:
+        # Check if toxic words are only in caps or quoted text (not abusive)
+        if _is_toxic_word_in_caps_or_quotes(text, toxic_labels):
             is_toxic = False
-            toxic_labels = []  # Clear the labels since it's likely just a quote
+            toxic_labels = []
+        else:
+            # Determine true toxicity using combination logic
+            is_toxic = self._determine_toxicity(toxic_labels, is_quote=is_quote)
+            
+            # If it's clearly a quote and doesn't have threat/severe signals, don't flag it
+            if is_quote and is_toxic and "threat" not in toxic_labels and "severe_toxic" not in toxic_labels:
+                is_toxic = False
+                toxic_labels = []  # Clear the labels since it's likely just a quote
         
         # Calculate weighted confidence for true toxic labels only
         if is_toxic:
@@ -250,8 +285,18 @@ class ToxicityAnalyzer:
             # Check if this looks like a video quote/reference
             is_quote = _is_likely_quote_or_reference(text)
             
-            # Determine true toxicity using combination logic
-            is_toxic = self._determine_toxicity(toxic_labels, is_quote=is_quote)
+            # Check if toxic words are only in caps or quoted text (not abusive)
+            if _is_toxic_word_in_caps_or_quotes(text, toxic_labels):
+                is_toxic = False
+                toxic_labels = []
+            else:
+                # Determine true toxicity using combination logic
+                is_toxic = self._determine_toxicity(toxic_labels, is_quote=is_quote)
+                
+                # If comment is clearly quoted/referenced, additional check
+                if is_quote and is_toxic and "threat" not in toxic_labels and "severe_toxic" not in toxic_labels:
+                    is_toxic = False
+                    toxic_labels = []
             
             # Calculate weighted confidence for true toxic labels
             if is_toxic:
