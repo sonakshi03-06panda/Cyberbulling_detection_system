@@ -351,14 +351,14 @@ HTML_TEMPLATE = """
         <div class="content-wrapper">
             <!-- Left Column: Analyze Comments -->
             <div class="section">
-                <h2>Analyze YouTube Video</h2>
+                <h2>Analyze URL</h2>
                 
                 <div class="alert alert-error" id="errorAlert"></div>
                 <div class="alert alert-success" id="successAlert"></div>
                 
                 <form id="reportForm">
                     <div class="form-group">
-                        <label for="url">Enter a YouTube video URL to analyze comments for cyberbullying and toxic content</label>
+                        <label for="url">Enter a video URL to analyze comments for cyberbullying and toxic content</label>
                         <input 
                             type="url" 
                             id="url" 
