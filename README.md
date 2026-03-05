@@ -211,11 +211,6 @@ analyzer.classify_batch(texts, batch_size=128)
 - Context-aware filtering
 - Quantized model support
 
-## 📚 Documentation
-- [OPTIMIZATION_REPORT.md](OPTIMIZATION_REPORT.md) - Detailed before/after analysis
-- [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) - Technical implementation details
-- [TOXICITY_REPORT_README.md](TOXICITY_REPORT_README.md) - Report formatting guide
-
 ## 🌍 Language
 - Application content and interface in English
 - Supports multilingual comment analysis
