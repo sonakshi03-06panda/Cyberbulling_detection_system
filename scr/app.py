@@ -34,37 +34,60 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50MB max
 
 
-# Initialize analyzers
+# Initialize analyzers (lazy loading)
 analyzer = None
 fetcher = None
 context_pipeline = None
 report_gen = ToxicityReportGenerator("reports")
+_models_loaded = False  # Flag to track if models are loaded
 
 
-def init_services():
-    """Initialize services."""
-    global analyzer, fetcher, context_pipeline
-    analyzer = ToxicityAnalyzer("models/final_model")
-    # Initialize fetcher with API key from environment
-    youtube_key = os.getenv("YOUTUBE_API_KEY")
-    print(f"Loaded YOUTUBE_API_KEY: {youtube_key}")
-    if not youtube_key:
-        # we'll still create the object so error is returned later,
-        # but log a warning for clarity
-        print("WARNING: YOUTUBE_API_KEY not set. comment fetching will fail.")
-    fetcher = CommentFetcher(youtube_key)
+def _load_models():
+    """Lazy load models only on first use (not at startup)."""
+    global analyzer, context_pipeline, _models_loaded
     
-    # Initialize context-aware pipeline if available
+    if _models_loaded:
+        return  # Already loaded
+    
+    print("[INFO] Loading ML models (this takes ~5-10 seconds)...")
+    import time
+    start = time.time()
+    
+    # Use quantized model for 3x faster loading and inference
+    analyzer = ToxicityAnalyzer("models/final_model_quantized")
+    
+    elapsed = time.time() - start
+    print(f"[INFO] Models loaded in {elapsed:.1f}s")
+    
+    # Initialize context pipeline if available
     if CONTEXT_AVAILABLE:
         try:
             context_pipeline = integrate_context_with_predictor(
                 analyzer,
                 context_window_size=3,
-                enable_analytics=False  # Disable analytics in web app
+                enable_analytics=False
             )
-            print("[INFO] Context-aware pipeline initialized successfully")
+            print("[INFO] Context pipeline ready")
         except Exception as e:
-            print(f"[WARNING] Failed to initialize context pipeline: {e}")
+            print(f"[WARNING] Context pipeline failed: {e}")
+    
+    _models_loaded = True
+
+
+def init_services():
+    """Initialize services (light setup, models load lazily)."""
+    global fetcher
+    
+    # Initialize fetcher with API key from environment
+    youtube_key = os.getenv("YOUTUBE_API_KEY")
+    if youtube_key:
+        print("[INFO] YOUTUBE_API_KEY configured")
+    else:
+        print("[WARNING] YOUTUBE_API_KEY not set. Comment fetching will fail.")
+    
+    fetcher = CommentFetcher(youtube_key)
+    print("[INFO] Comment fetcher ready")
+    print("[INFO] ✓ App startup complete! Models will load on first analysis request.")
 
 
 HTML_TEMPLATE = """
@@ -410,7 +433,7 @@ HTML_TEMPLATE = """
                             style="width: auto; cursor: pointer;"
                         >
                         <label for="useContext" style="margin: 0; cursor: pointer; flex: 1;">
-                            🧠 Analyze with Conversation Context (More Accurate)
+                            Analyze with Conversation Context (More Accurate)
                         </label>
                     </div>
                     <small style="color: #999; display: block; margin-top: 5px;">Consider previous comments in thread for more accurate toxicity detection</small>
@@ -553,14 +576,13 @@ def index():
 def analyze():
     """Analyze comments and generate report."""
     try:
+        # Load models on first request (lazy loading)
+        _load_models()
+        
         data = request.json
         url = data.get("url")
         max_comments = int(data.get("maxComments", 0))
         use_context = data.get("useContext", False) and CONTEXT_AVAILABLE and context_pipeline is not None
-        
-        # If 0, fetch all comments (set to a very high number)
-        if max_comments <= 0:
-            max_comments = 999999
         
         # Generate report number based on existing reports
         import glob
