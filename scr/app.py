@@ -21,6 +21,15 @@ from comment_fetcher import CommentFetcher
 from toxicity_analyzer import ToxicityAnalyzer, analyze_comments
 from report_generator import ToxicityReportGenerator
 
+# Import conversation context modules (optional)
+try:
+    from context_integration import integrate_context_with_predictor
+    CONTEXT_AVAILABLE = True
+    print("[INFO] Conversation context module loaded successfully")
+except ImportError:
+    CONTEXT_AVAILABLE = False
+    print("[WARNING] Conversation context module not available - will use standard analysis")
+
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50MB max
 
@@ -28,12 +37,13 @@ app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50MB max
 # Initialize analyzers
 analyzer = None
 fetcher = None
+context_pipeline = None
 report_gen = ToxicityReportGenerator("reports")
 
 
 def init_services():
     """Initialize services."""
-    global analyzer, fetcher
+    global analyzer, fetcher, context_pipeline
     analyzer = ToxicityAnalyzer("models/final_model")
     # Initialize fetcher with API key from environment
     youtube_key = os.getenv("YOUTUBE_API_KEY")
@@ -43,6 +53,18 @@ def init_services():
         # but log a warning for clarity
         print("WARNING: YOUTUBE_API_KEY not set. comment fetching will fail.")
     fetcher = CommentFetcher(youtube_key)
+    
+    # Initialize context-aware pipeline if available
+    if CONTEXT_AVAILABLE:
+        try:
+            context_pipeline = integrate_context_with_predictor(
+                analyzer,
+                context_window_size=3,
+                enable_analytics=False  # Disable analytics in web app
+            )
+            print("[INFO] Context-aware pipeline initialized successfully")
+        except Exception as e:
+            print(f"[WARNING] Failed to initialize context pipeline: {e}")
 
 
 HTML_TEMPLATE = """
@@ -380,6 +402,19 @@ HTML_TEMPLATE = """
                         <small style="color: #666; display: block; margin-top: 5px;">Enter 0 to analyze all comments, or specify a number limit</small>
                     </div>
                     
+                    <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                        <input 
+                            type="checkbox" 
+                            id="useContext" 
+                            name="useContext"
+                            style="width: auto; cursor: pointer;"
+                        >
+                        <label for="useContext" style="margin: 0; cursor: pointer; flex: 1;">
+                            🧠 Analyze with Conversation Context (More Accurate)
+                        </label>
+                    </div>
+                    <small style="color: #999; display: block; margin-top: 5px;">Consider previous comments in thread for more accurate toxicity detection</small>
+                    
                     <div class="loading" id="loading">
                         <div class="spinner"></div>
                         <p>Analyzing comments...</p>
@@ -415,6 +450,7 @@ HTML_TEMPLATE = """
             
             const url = document.getElementById('url').value;
             const maxComments = document.getElementById('maxComments').value;
+            const useContext = document.getElementById('useContext').checked;
             const analyzeBtn = document.getElementById('analyzeBtn');
             
             // Show loading
@@ -428,17 +464,24 @@ HTML_TEMPLATE = """
                 const response = await fetch('/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, maxComments })
+                    body: JSON.stringify({ url, maxComments, useContext })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
+                    // Add context indicator if used
+                    let contextIndicator = '';
+                    if (data.use_context) {
+                        contextIndicator = '<span class="badge" style="background: #c8e6c9; color: #2e7d32;">✓ Context-Aware Analysis</span>';
+                    }
+                    
                     document.getElementById('summary').innerHTML = `
                         <strong>Analysis Complete!</strong><br><br>
                         <span class="badge badge-info">${data.total_comments} Comments</span>
                         <span class="badge badge-danger">${data.toxic_comments} Toxic (${data.toxic_rate.toFixed(1)}%)</span>
                         <span class="badge badge-warning">Confidence: ${(data.avg_confidence * 100).toFixed(1)}%</span>
+                        ${contextIndicator}
                         <hr style="margin: 20px 0; border: 1px solid #ddd;">
                     `;
                     
@@ -513,6 +556,8 @@ def analyze():
         data = request.json
         url = data.get("url")
         max_comments = int(data.get("maxComments", 0))
+        use_context = data.get("useContext", False) and CONTEXT_AVAILABLE and context_pipeline is not None
+        
         # If 0, fetch all comments (set to a very high number)
         if max_comments <= 0:
             max_comments = 999999
@@ -547,9 +592,15 @@ def analyze():
                 "error": "No comments found. Check URL or API credentials."
             })
         
-        # Analyze
-        print(f"Analyzing {len(comments)} comments...")
-        df = analyze_comments(comments, analyzer)
+        # Analyze with context or standard
+        print(f"Analyzing {len(comments)} comments (context={use_context})...")
+        
+        if use_context:
+            # Use context-aware analysis
+            df = analyze_comments_with_context(comments, context_pipeline)
+        else:
+            # Use standard analysis
+            df = analyze_comments(comments, analyzer)
         
         # Generate report and get HTML content
         print("Generating report...")
@@ -565,7 +616,8 @@ def analyze():
             "toxic_comments": int(df["is_toxic"].sum()),
             "toxic_rate": float(100 * df["is_toxic"].sum() / len(df)) if len(df) > 0 else 0,
             "avg_confidence": float(df["max_confidence"].mean()),
-            "report_html": report_html  # Include full HTML in response
+            "report_html": report_html,  # Include full HTML in response
+            "use_context": use_context
         }
         
         return jsonify({
@@ -576,7 +628,60 @@ def analyze():
     
     except Exception as e:
         print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)})
+
+
+def analyze_comments_with_context(comments: list, context_pipeline) -> pd.DataFrame:
+    """
+    Analyze comments using conversation context awareness.
+    
+    Groups comments by thread and analyzes them with context from previous comments.
+    """
+    results = []
+    
+    # Create a thread structure from comments
+    # If comments don't have thread_id, assign them sequentially
+    comments_with_ids = []
+    for i, comment in enumerate(comments):
+        if isinstance(comment, dict):
+            comment_obj = {
+                'comment_id': f"c_{i}",
+                'text': comment.get('text', ''),
+                'author': comment.get('author', 'Unknown'),
+                'thread_id': 't_0'  # Group all in single thread for YouTube
+            }
+        else:
+            comment_obj = {
+                'comment_id': f"c_{i}",
+                'text': str(comment),
+                'author': 'Unknown',
+                'thread_id': 't_0'
+            }
+        comments_with_ids.append(comment_obj)
+    
+    # Predict with context
+    try:
+        predictions = context_pipeline.predict_thread(comments_with_ids, use_context=True)
+    except Exception as e:
+        print(f"[WARNING] Context-aware prediction failed, falling back to standard: {e}")
+        return analyze_comments(comments, analyzer)
+    
+    # Convert to DataFrame format compatible with report generator
+    for pred in predictions:
+        result = {
+            'text': pred.get('original_text', pred.get('text', '')),
+            'author': pred.get('author', 'Unknown'),
+            'is_toxic': pred.get('is_toxic', False),
+            'max_confidence': pred.get('confidence', 0.5),
+            'context_used': pred.get('context_used', False),
+            'context_size': pred.get('context_size', 0)
+        }
+        results.append(result)
+    
+    df = pd.DataFrame(results)
+    return df
 
 
 # determine report directory same as report generator
