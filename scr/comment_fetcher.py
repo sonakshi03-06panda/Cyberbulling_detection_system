@@ -149,10 +149,12 @@ class YouTubeCommentFetcher:
         page_count = 0
 
         print("\n[INFO] Fetching YouTube comments...")
+        print(f"[INFO] Video ID: {video_id}")
 
         while True:
 
             try:
+                print(f"[INFO] Fetching page {page_count + 1}...")
                 response = self.youtube.commentThreads().list(
                     part="snippet,replies",
                     videoId=video_id,
@@ -160,9 +162,12 @@ class YouTubeCommentFetcher:
                     pageToken=next_page,
                     textFormat="plainText"
                 ).execute()
+                
+                print(f"[INFO] Response received with {len(response.get('items', []))} items")
 
             except Exception as e:
                 error_msg = str(e)
+                print(f"[ERROR] API Exception: {error_msg}")
                 
                 # Handle pagination errors gracefully
                 if "400" in error_msg or "processingFailure" in error_msg:
