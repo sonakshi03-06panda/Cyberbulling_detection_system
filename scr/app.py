@@ -53,8 +53,8 @@ def _load_models():
     import time
     start = time.time()
     
-    # Use quantized model for 3x faster loading and inference
-    analyzer = ToxicityAnalyzer("models/final_model_quantized")
+    # Use final model (quantized version not available)
+    analyzer = ToxicityAnalyzer("models/final_model")
     
     elapsed = time.time() - start
     print(f"[INFO] Models loaded in {elapsed:.1f}s")
@@ -81,9 +81,10 @@ def init_services():
     # Initialize fetcher with API key from environment
     youtube_key = os.getenv("YOUTUBE_API_KEY")
     if youtube_key:
-        print("[INFO] YOUTUBE_API_KEY configured")
+        print(f"[INFO] YOUTUBE_API_KEY configured: {youtube_key[:20]}...")
     else:
         print("[WARNING] YOUTUBE_API_KEY not set. Comment fetching will fail.")
+        print("[WARNING] Make sure YOUTUBE_API_KEY is in your .env file")
     
     fetcher = CommentFetcher(youtube_key)
     print("[INFO] Comment fetcher ready")
@@ -595,6 +596,13 @@ def analyze():
         
         # Fetch comments
         print(f"Fetching comments from {url}...")
+        print(f"[DEBUG] Max comments requested: {max_comments}")
+        
+        # If max_comments is 0 or not specified, use default
+        if max_comments <= 0:
+            max_comments = 1000
+            print(f"[DEBUG] Using default max_comments: {max_comments}")
+        
         try:
             comments = fetcher.fetch_comments(url, max_comments)
         except ValueError as e:
