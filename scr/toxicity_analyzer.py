@@ -1,30 +1,50 @@
 """
 Classify comments for toxicity using a local DistilBERT model.
+Integrates advanced text preprocessing pipeline for improved accuracy.
 """
 
 import torch
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 import re
 import emoji
 from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification
 from tqdm import tqdm
+from preprocessing import TextPreprocessor
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 LABELS = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 
+# Initialize global preprocessor instance
+_preprocessor = TextPreprocessor()
 
-def clean_text(text: str) -> str:
-    """Clean and normalize text."""
-    text = str(text).lower()
-    text = re.sub(r"http\S+", "", text)  # Remove URLs
-    try:
-        text = emoji.demojize(text)  # Convert emojis to text
-    except:
-        pass
-    text = re.sub(r"\s+", " ", text).strip()  # Normalize whitespace
-    return text
+
+def clean_text(text: str, use_advanced_preprocessing: bool = True) -> str:
+    """
+    Clean and normalize text using advanced preprocessing pipeline.
+    
+    Args:
+        text: Input text to clean
+        use_advanced_preprocessing: If True, uses advanced preprocessing; if False, uses basic cleaning
+    
+    Returns:
+        Cleaned text
+    """
+    if use_advanced_preprocessing:
+        # Use advanced preprocessing pipeline
+        result = _preprocessor.preprocess(text, return_features=False)
+        return result['cleaned_text']
+    else:
+        # Fallback to basic preprocessing
+        text = str(text).lower()
+        text = re.sub(r"http\S+", "", text)  # Remove URLs
+        try:
+            text = emoji.demojize(text)  # Convert emojis to text
+        except:
+            pass
+        text = re.sub(r"\s+", " ", text).strip()  # Normalize whitespace
+        return text
 
 
 def _is_toxic_word_in_caps_or_quotes(text: str, toxic_labels: List[str]) -> bool:
@@ -84,7 +104,7 @@ def _is_likely_quote_or_reference(text: str) -> bool:
 
 
 class ToxicityAnalyzer:
-    """Analyze comments for toxicity using a DistilBERT model."""
+    """Analyze comments for toxicity using a DistilBERT model with advanced preprocessing."""
     
     def __init__(self, model_path: str = "models/final_model", threshold: float = 0.5):
         """
@@ -99,6 +119,7 @@ class ToxicityAnalyzer:
         self.model.eval()
         self.threshold = threshold
         self.labels = LABELS
+        self.preprocessor = TextPreprocessor()  # Initialize preprocessor
         
         # OPTIMIZED: Label-specific thresholds - improved for better accuracy
         self.label_thresholds = {
@@ -187,9 +208,19 @@ class ToxicityAnalyzer:
         """
         Classify a single comment with smart thresholds and label weighting.
         Considers context (quotes/references) to avoid false positives.
+        Includes auxiliary features: profanity detection, sarcasm indicators.
         """
+        # Use advanced preprocessing pipeline with auxiliary features
+        preprocessing_result = self.preprocessor.preprocess(text, return_features=True)
+        clean = preprocessing_result['cleaned_text']
+        is_valid_length = preprocessing_result['is_valid']
+        has_profanity = preprocessing_result['has_profanity']
+        profanity_list = preprocessing_result['profanity_list']
+        profanity_intensity = preprocessing_result['profanity_intensity']
+        has_sarcasm_indicators = preprocessing_result['has_sarcasm_indicators']
+        sarcasm_indicators = preprocessing_result['sarcasm_indicators']
+        
         # Local HF inference
-        clean = clean_text(text)
         inputs = self.tokenizer(
             clean, return_tensors="pt", padding=True, truncation=True, max_length=128
         )
@@ -246,12 +277,20 @@ class ToxicityAnalyzer:
             "toxic_labels": toxic_labels,
             "confidences": {self.labels[i]: float(probs[i]) for i in range(len(self.labels))},
             "severity": severity,
-            "max_confidence": max_confidence
+            "max_confidence": max_confidence,
+            # Auxiliary features
+            "is_valid_length": is_valid_length,
+            "has_profanity": has_profanity,
+            "profanity_list": profanity_list,
+            "profanity_intensity": profanity_intensity,
+            "has_sarcasm_indicators": has_sarcasm_indicators,
+            "sarcasm_indicators": sarcasm_indicators,
         }
     
     def classify_batch(self, texts: List[str], batch_size: int = 128) -> List[Dict]:
         """
         Classify multiple comments with smart thresholds and label weighting.
+        Includes auxiliary features: profanity detection, sarcasm indicators.
         OPTIMIZED: Increased default batch size from 64 to 128 for better throughput.
         
         Args:
@@ -259,23 +298,30 @@ class ToxicityAnalyzer:
             batch_size: Batch size for inference (OPTIMIZED: default 128 for 40% faster processing)
         
         Returns:
-            List of classification dicts
+            List of classification dicts with auxiliary features
         """
-        results = []
+        # Preprocess all texts first
+        preprocessing_results = self.preprocessor.batch_preprocess(texts, return_features=True)
+        clean_texts = [r['cleaned_text'] for r in preprocessing_results]
+        
+        # Tokenize cleaned texts
         encodings = self.tokenizer(
-            texts, truncation=True, padding=True, max_length=128
+            clean_texts, truncation=True, padding=True, max_length=128
         )
         all_probs = []
         with torch.no_grad():
-            for i in tqdm(range(0, len(texts), batch_size), desc="Classifying", unit="batch"):
+            for i in tqdm(range(0, len(clean_texts), batch_size), desc="Classifying", unit="batch"):
                 batch = {k: torch.tensor(v[i:i+batch_size]).to(DEVICE) for k, v in encodings.items()}
                 outputs = self.model(**batch)
                 logits = outputs.logits.cpu().numpy()
                 probs = 1.0 / (1.0 + np.exp(-logits))
                 all_probs.append(probs)
         all_probs = np.vstack(all_probs)
+        
+        results = []
         for i, text in enumerate(tqdm(texts, desc="Processing results")):
             probs = all_probs[i]
+            preprocessing_result = preprocessing_results[i]
             
             # Apply label-specific thresholds
             toxic_labels = [
@@ -319,12 +365,19 @@ class ToxicityAnalyzer:
             
             results.append({
                 "text": text,
-                "clean_text": clean_text(text),
+                "clean_text": preprocessing_result['cleaned_text'],
                 "is_toxic": is_toxic,
                 "toxic_labels": toxic_labels,
                 "confidences": {self.labels[j]: float(probs[j]) for j in range(len(self.labels))},
                 "severity": severity,
-                "max_confidence": max_confidence
+                "max_confidence": max_confidence,
+                # Auxiliary features
+                "is_valid_length": preprocessing_result['is_valid'],
+                "has_profanity": preprocessing_result['has_profanity'],
+                "profanity_list": preprocessing_result['profanity_list'],
+                "profanity_intensity": preprocessing_result['profanity_intensity'],
+                "has_sarcasm_indicators": preprocessing_result['has_sarcasm_indicators'],
+                "sarcasm_indicators": preprocessing_result['sarcasm_indicators'],
             })
         return results
 
