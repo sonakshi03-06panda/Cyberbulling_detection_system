@@ -325,6 +325,7 @@ class ToxicityAnalyzer:
                 # Model outputs
                 "toxic_labels": improved_result["labels"],
                 "confidences": label_probs,
+                "max_confidence": max(label_probs.values()) if label_probs else 0.0,
                 # Explanation
                 "reasoning": improved_result["reasoning"],
                 # Auxiliary features
