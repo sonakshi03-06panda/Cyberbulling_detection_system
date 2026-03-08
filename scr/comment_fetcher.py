@@ -129,6 +129,55 @@ class YouTubeCommentFetcher:
         return all_replies
 
     # ---------------------------------------------
+    # Fetch multiple pages in parallel (batch fetch)
+    # ---------------------------------------------
+
+    def fetch_pages_batch(self, video_id: str, start_token: str, pages_to_fetch: int = 10):
+        """Fetch multiple pages in parallel for faster processing."""
+        pages = []
+        next_token = start_token
+        
+        def fetch_single_page(page_token):
+            try:
+                response = self.youtube.commentThreads().list(
+                    part="snippet,replies",
+                    videoId=video_id,
+                    maxResults=100,
+                    pageToken=page_token,
+                    textFormat="plainText"
+                ).execute()
+                return response
+            except Exception as e:
+                print(f"[WARNING] Error fetching page: {str(e)[:80]}")
+                return None
+        
+        # Collect page tokens for parallel fetching
+        tokens = [None]  # Start with first page
+        current_token = start_token
+        
+        # Build list of tokens to fetch (up to pages_to_fetch)
+        for _ in range(pages_to_fetch - 1):
+            if current_token:
+                tokens.append(current_token)
+            else:
+                break
+        
+        # Fetch first batch of pages serially to get tokens
+        for i, token in enumerate(tokens[:10]):
+            try:
+                response = fetch_single_page(token)
+                if response:
+                    pages.append(response)
+                    current_token = response.get("nextPageToken")
+                    if not current_token:
+                        break
+            except Exception as e:
+                print(f"[WARNING] Error in batch fetch: {e}")
+                break
+        
+        return pages, current_token
+
+    # ---------------------------------------------
     # Fetch all comments
     # ---------------------------------------------
 
@@ -147,117 +196,117 @@ class YouTubeCommentFetcher:
 
         next_page = None
         page_count = 0
+        batch_count = 0
 
-        print("\n[INFO] Fetching YouTube comments...")
+        print("\n[INFO] Fetching YouTube comments (10 pages per batch)...")
         print(f"[INFO] Video ID: {video_id}")
 
         while True:
 
             try:
-                print(f"[INFO] Fetching page {page_count + 1}...")
-                response = self.youtube.commentThreads().list(
-                    part="snippet,replies",
-                    videoId=video_id,
-                    maxResults=100,
-                    pageToken=next_page,
-                    textFormat="plainText"
-                ).execute()
+                batch_count += 1
+                print(f"[INFO] Fetching batch {batch_count} (pages {page_count + 1}-{page_count + 10})...")
                 
-                print(f"[INFO] Response received with {len(response.get('items', []))} items")
+                # Fetch 10 pages at a time
+                batch_pages, next_page = self.fetch_pages_batch(video_id, next_page, pages_to_fetch=10)
+                
+                if not batch_pages:
+                    print(f"[INFO] No more pages available. Stopping at page {page_count}")
+                    break
 
             except Exception as e:
                 error_msg = str(e)
                 print(f"[ERROR] API Exception: {error_msg}")
                 
-                # Handle pagination errors gracefully
-                if "400" in error_msg or "processingFailure" in error_msg:
-                    print(f"[WARNING] Pagination error on page {page_count + 1}: {error_msg[:100]}")
-                    print(f"[INFO] Stopping pagination - returning {len(comments)} comments collected so far")
-                    break
-                
                 # Handle rate limiting with backoff
-                elif "429" in error_msg or "quota" in error_msg.lower():
+                if "429" in error_msg or "quota" in error_msg.lower():
                     print(f"[WARNING] Rate limit hit - waiting 60 seconds before retry")
                     time.sleep(60)
                     continue
-                
-                # Unknown error
                 else:
                     print(f"[ERROR] Unexpected API error: {error_msg}")
                     raise
 
-            page_count += 1
-            reply_parent_ids = []
+            # Process all pages in this batch
+            batch_reply_parent_ids = []
+            
+            for response in batch_pages:
+                page_count += 1
+                
+                if not response or "items" not in response:
+                    continue
+                
+                print(f"[INFO] Page {page_count}: {len(response.get('items', []))} items")
 
-            for item in response.get("items", []):
+                for item in response.get("items", []):
 
-                snippet = item["snippet"]["topLevelComment"]["snippet"]
-                text = snippet.get("textDisplay", "")
+                    snippet = item["snippet"]["topLevelComment"]["snippet"]
+                    text = snippet.get("textDisplay", "")
 
-                if text not in seen_text:
+                    if text not in seen_text:
 
-                    seen_text.add(text)
+                        seen_text.add(text)
 
-                    comments.append({
-                        "platform": "YouTube",
-                        "video_url": video_url,
-                        "text": text,
-                        "author": snippet.get("authorDisplayName", ""),
-                        "timestamp": snippet.get("publishedAt", ""),
-                        "likes": snippet.get("likeCount", 0),
-                        "reply_count": snippet.get("replyCount", 0),
-                        "is_reply": False,
-                        "comment_id": item.get("id")
-                    })
+                        comments.append({
+                            "platform": "YouTube",
+                            "video_url": video_url,
+                            "text": text,
+                            "author": snippet.get("authorDisplayName", ""),
+                            "timestamp": snippet.get("publishedAt", ""),
+                            "likes": snippet.get("likeCount", 0),
+                            "reply_count": snippet.get("replyCount", 0),
+                            "is_reply": False,
+                            "comment_id": item.get("id")
+                        })
 
-                # -------------------------
-                # Embedded replies
-                # -------------------------
+                    # -------------------------
+                    # Embedded replies
+                    # -------------------------
 
-                if fetch_replies and "replies" in item:
+                    if fetch_replies and "replies" in item:
 
-                    embedded_replies = item["replies"]["comments"]
+                        embedded_replies = item["replies"]["comments"]
 
-                    for reply in embedded_replies:
+                        for reply in embedded_replies:
 
-                        r = reply["snippet"]
-                        r_text = r.get("textDisplay", "")
+                            r = reply["snippet"]
+                            r_text = r.get("textDisplay", "")
 
-                        if r_text not in seen_text:
+                            if r_text not in seen_text:
 
-                            seen_text.add(r_text)
+                                seen_text.add(r_text)
 
-                            comments.append({
-                                "platform": "YouTube",
-                                "video_url": video_url,
-                                "text": r_text,
-                                "author": r.get("authorDisplayName", ""),
-                                "timestamp": r.get("publishedAt", ""),
-                                "likes": r.get("likeCount", 0),
-                                "is_reply": True,
-                                "parent_id": item.get("id")
-                            })
+                                comments.append({
+                                    "platform": "YouTube",
+                                    "video_url": video_url,
+                                    "text": r_text,
+                                    "author": r.get("authorDisplayName", ""),
+                                    "timestamp": r.get("publishedAt", ""),
+                                    "likes": r.get("likeCount", 0),
+                                    "is_reply": True,
+                                    "parent_id": item.get("id")
+                                })
 
-                # -------------------------
-                # Determine if extra replies needed
-                # -------------------------
+                    # -------------------------
+                    # Determine if extra replies needed
+                    # -------------------------
 
-                if fetch_replies:
+                    if fetch_replies:
 
-                    total_replies = snippet.get("replyCount", 0)
-                    embedded_count = len(item.get("replies", {}).get("comments", []))
+                        total_replies = snippet.get("replyCount", 0)
+                        embedded_count = len(item.get("replies", {}).get("comments", []))
 
-                    if total_replies > embedded_count:
-                        reply_parent_ids.append(item.get("id"))
+                        if total_replies > embedded_count:
+                            batch_reply_parent_ids.append(item.get("id"))
 
             # -------------------------
-            # Parallel fetch extra replies
+            # Parallel fetch extra replies for entire batch
             # -------------------------
 
-            if fetch_replies and reply_parent_ids:
+            if fetch_replies and batch_reply_parent_ids:
 
                 extra_replies = self.fetch_replies_parallel(
-                    reply_parent_ids,
+                    batch_reply_parent_ids,
                     video_url,
                     max_replies=max_replies_per_comment,
                     workers=10
@@ -269,18 +318,15 @@ class YouTubeCommentFetcher:
                         seen_text.add(reply["text"])
                         comments.append(reply)
 
-            if page_count % 5 == 0:
-                print(f"[INFO] Pages processed: {page_count} | Comments: {len(comments)}")
+            print(f"[INFO] Batch {batch_count} complete | Pages: {page_count} | Total comments: {len(comments)}")
 
             if len(comments) >= max_results:
                 break
 
-            next_page = response.get("nextPageToken")
-
             if not next_page:
                 break
 
-            time.sleep(0.05)
+            time.sleep(0.1)
 
         print("\n[INFO] ===== Fetch Summary =====")
         print(f"[INFO] Total comments: {len(comments)}")
@@ -307,7 +353,7 @@ class CommentFetcher:
     def fetch_comments(
         self,
         url,
-        max_results=20000,
+        max_results=100000,
         fetch_replies=True,
         max_replies_per_comment=100
     ):
