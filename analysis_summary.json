@@ -1,0 +1,35 @@
+{
+  "dataset": {
+    "total_comments": 20,
+    "processing_time_seconds": 3.4,
+    "avg_ms_per_comment": 169.99999999999997
+  },
+  "toxicity": {
+    "clean": 19,
+    "toxic": 1,
+    "clean_percentage": 95.0,
+    "toxic_percentage": 5.0
+  },
+  "severity": {
+    "average": 0.05,
+    "max": 1,
+    "min": 0,
+    "std_dev": 0.22360679774997896
+  },
+  "top_tokens": {
+    "die": 0.24744437634944916,
+    "idiot": 0.12322898954153061,
+    "disgusting": 0.10043136775493622,
+    "worthless": 0.09871053695678711,
+    "reasoning": 0.09727222472429276,
+    "concerns": 0.09362994134426117,
+    "stupid": 0.08813067525625229,
+    "disagree": 0.08684204518795013,
+    "explained": 0.08450644463300705,
+    "kill": 0.08441311866044998
+  },
+  "explanation_quality": {
+    "avg_tokens_per_comment": 5,
+    "all_have_explanations": true
+  }
+}

@@ -12,6 +12,13 @@ import emoji
 from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification
 from tqdm import tqdm
 from preprocessing import TextPreprocessor
+from IMPROVED_CLASSIFIER_IMPLEMENTATION import ImprovedToxicityClassifier
+try:
+    from emoji_sarcasm_detector import detect_emoji_sarcasm
+except ImportError:
+    # Fallback if module not found
+    def detect_emoji_sarcasm(text, base_toxicity):
+        return {"is_sarcastic": False, "sarcasm_score": 0.0, "adjusted_toxicity_score": base_toxicity}
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 LABELS = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
@@ -120,105 +127,37 @@ class ToxicityAnalyzer:
         self.threshold = threshold
         self.labels = LABELS
         self.preprocessor = TextPreprocessor()  # Initialize preprocessor
+        self.improved_classifier = ImprovedToxicityClassifier()  # Initialize improved classifier
         
-        # OPTIMIZED: Label-specific thresholds - improved for better accuracy
+        # IMPROVED THRESHOLDS: Better for distinguishing criticism from toxicity
         self.label_thresholds = {
-            "threat": 0.30,           # Slightly raised to reduce false positives (was 0.25)
-            "severe_toxic": 0.60,     # Optimized from 0.65 - better F1 balance
-            "identity_hate": 0.68,    # Refined from 0.70 - better recall
-            "toxic": 0.75,            # Refined from 0.80 - more balanced
-            "insult": 0.80,           # Refined from 0.85 - better accuracy
-            "obscene": 0.85           # Refined from 0.90 - improved F1 score
+            "threat": 0.25,           # Lower - threats are unambiguous
+            "severe_toxic": 0.55,     # Reduced - better recall on severe abuse
+            "identity_hate": 0.65,    # Refined - catches hate speech better
+            "toxic": 0.70,            # Lowered - allows more true positives
+            "insult": 0.75,           # Lowered - better insult detection
+            "obscene": 0.85           # Unchanged - profanity alone isn't always toxic
         }
         
-        # OPTIMIZED: Label weights for severity - improved calibration
+        # IMPROVED WEIGHTS: Better severity calibration
         self.label_weights = {
-            "threat": 1.0,            # Unchanged - direct threats remain critical
-            "severe_toxic": 0.90,     # Refined from 0.95 - slight reduction
-            "identity_hate": 0.58,    # Refined from 0.60
-            "toxic": 0.72,            # Refined from 0.75
-            "insult": 0.52,           # Refined from 0.55
-            "obscene": 0.33           # Refined from 0.35
+            "threat": 1.0,            # Critical
+            "severe_toxic": 0.95,    # Almost as critical
+            "identity_hate": 0.80,    # Serious
+            "toxic": 0.60,            # Moderate
+            "insult": 0.70,           # Serious-Moderate
+            "obscene": 0.25           # Low priority
         }
-    
-    def _determine_toxicity(self, toxic_labels: List[str], is_quote: bool = False) -> bool:
-        """
-        Determine if comment is truly toxic based on label combinations.
-        VERY STRICT logic to minimize false positives from profanity/quotes.
-        Only flags comments with clear harmful intent, not just strong language.
-        """
-        if not toxic_labels:
-            return False
-        
-        # If it's a detected quote, almost nothing is toxic (quotes express reactions, not threats)
-        # Exception: only very serious threats with other signals
-        if is_quote:
-            # Quotes with ONLY threat label = not genuine threat (it's a movie reference)
-            if toxic_labels == ["threat"]:
-                return False
-            # Quotes with threat + other labels might still not be genuine
-            if "threat" in toxic_labels and len(toxic_labels) <= 2:
-                return False
-        
-        # Direct threats are ALWAYS toxic (but see quote handling above)
-        if "threat" in toxic_labels and not is_quote:
-            return True
-        
-        # Severe_toxic at high threshold (0.65+) indicates GENUINELY severe content (not just quotes)
-        if "severe_toxic" in toxic_labels:
-            # Still double-check: if ONLY severe_toxic with mild labels, might be quoted
-            if all(l in ["severe_toxic", "obscene", "insult"] for l in toxic_labels):
-                # If it has toxic too, it's more likely genuine
-                return "toxic" in toxic_labels
-            return True
-        
-        # Single label cases - almost never toxic (these are high threshold labels now)
-        if len(toxic_labels) == 1:
-            return False
-        
-        # Multiple labels required beyond this point
-        
-        # Insult + identity_hate (without severe signals) = not toxic
-        # (Could be assertive speech about a group, not hateful)
-        if set(toxic_labels) == {"insult", "identity_hate"}:
-            return False
-        
-        # Toxic + any single mild label = not toxic
-        # (Generic negativity, not targeted harassment)
-        if "toxic" in toxic_labels and len([l for l in toxic_labels if l in ["insult", "obscene"]]) == 1:
-            return False
-        
-        # Toxic + identity_hate (no other serious labels) = not necessarily toxic
-        # (Could be political speech, not hate speech)
-        if set(toxic_labels) == {"toxic", "identity_hate"}:
-            return False
-        
-        # 3+ serious labels = very likely toxic
-        serious = ["toxic", "insult", "identity_hate"]
-        if sum(1 for l in toxic_labels if l in serious) >= 3:
-            return True
-        
-        # Toxic + insult + something else = toxic
-        if "toxic" in toxic_labels and "insult" in toxic_labels and len(toxic_labels) >= 3:
-            return True
-        
-        return False
     
     def classify_comment(self, text: str) -> Dict:
         """
-        Classify a single comment with smart thresholds and label weighting.
-        Considers context (quotes/references) to avoid false positives.
-        Includes auxiliary features: profanity detection, sarcasm indicators.
+        Classify a single comment with IMPROVED logic.
+        Uses ImprovedToxicityClassifier for better distinction between
+        criticism and personal attacks. Includes 5-tier categorization.
         """
         # Use advanced preprocessing pipeline with auxiliary features
         preprocessing_result = self.preprocessor.preprocess(text, return_features=True)
         clean = preprocessing_result['cleaned_text']
-        is_valid_length = preprocessing_result['is_valid']
-        has_profanity = preprocessing_result['has_profanity']
-        profanity_list = preprocessing_result['profanity_list']
-        profanity_intensity = preprocessing_result['profanity_intensity']
-        has_sarcasm_indicators = preprocessing_result['has_sarcasm_indicators']
-        sarcasm_indicators = preprocessing_result['sarcasm_indicators']
         
         # Local HF inference
         inputs = self.tokenizer(
@@ -230,75 +169,89 @@ class ToxicityAnalyzer:
             logits = outputs.logits.cpu().numpy()[0]
             probs = torch.sigmoid(torch.tensor(logits)).numpy()
         
-        # Apply label-specific thresholds
+        # Create probability dict
+        label_probs = {self.labels[i]: float(probs[i]) for i in range(len(self.labels))}
+        
+        # Apply improved thresholds
         toxic_labels = [
             self.labels[i] for i in range(len(self.labels))
             if probs[i] > self.label_thresholds[self.labels[i]]
         ]
         
-        # Check if this looks like a video quote/reference
-        is_quote = _is_likely_quote_or_reference(text)
+        # USE IMPROVED CLASSIFIER for better categorization
+        improved_result = self.improved_classifier.classify(
+            text,
+            label_probs,
+            toxic_labels,
+            self.labels
+        )
         
-        # Check if toxic words are only in caps or quoted text (not abusive)
-        if _is_toxic_word_in_caps_or_quotes(text, toxic_labels):
-            is_toxic = False
-            toxic_labels = []
-        else:
-            # Determine true toxicity using combination logic
-            is_toxic = self._determine_toxicity(toxic_labels, is_quote=is_quote)
+        # EMOJI-AWARE SARCASM ANALYSIS
+        # Detect if emojis amplify toxicity through sarcasm
+        sarcasm_analysis = detect_emoji_sarcasm(
+            text,
+            improved_result.get("toxicity_score", 0.0)
+        )
+        
+        # If strong sarcasm signal detected
+        sarcasm_detected = False
+        if sarcasm_analysis.get("is_sarcastic", False) and sarcasm_analysis.get("sarcasm_score", 0) > 0.5:
+            sarcasm_detected = True
+            adjusted_score = sarcasm_analysis.get("adjusted_toxicity_score", improved_result.get("toxicity_score", 0.0))
             
-            # If it's clearly a quote and doesn't have threat/severe signals, don't flag it
-            if is_quote and is_toxic and "threat" not in toxic_labels and "severe_toxic" not in toxic_labels:
-                is_toxic = False
-                toxic_labels = []  # Clear the labels since it's likely just a quote
+            # Check if we should upgrade category to sarcastic_toxic
+            if improved_result["category"] in ["non_toxic", "mild_negative"]:
+                if adjusted_score > 0.45:
+                    improved_result["category"] = "sarcastic_toxic"
+                    improved_result["is_toxic"] = True
+                    improved_result["toxicity_score"] = adjusted_score
+            elif improved_result["category"] in ["toxic_insult"]:
+                # Boost existing toxicity with emoji context
+                improved_result["toxicity_score"] = adjusted_score
         
-        # Calculate weighted confidence for true toxic labels only
-        if is_toxic:
-            weighted_probs = {self.labels[i]: float(probs[i]) * self.label_weights[self.labels[i]] 
-                            for i in range(len(self.labels)) if self.labels[i] in toxic_labels}
-            max_confidence = max(weighted_probs.values()) if weighted_probs else 0.0
-        else:
-            max_confidence = float(probs.max()) * 0.5  # Discount if not truly toxic
-        
-        # Calculate severity
-        if not is_toxic:
-            severity = 0
-        elif any(l in ["threat", "severe_toxic"] for l in toxic_labels):
-            severity = 3
-        elif any(l in ["insult", "identity_hate"] for l in toxic_labels):
-            severity = 2
-        else:
-            severity = 1
-        
-        return {
+        # Build result dict
+        result = {
             "text": text,
             "clean_text": clean,
-            "is_toxic": is_toxic,
-            "toxic_labels": toxic_labels,
-            "confidences": {self.labels[i]: float(probs[i]) for i in range(len(self.labels))},
-            "severity": severity,
-            "max_confidence": max_confidence,
+            # NEW: 5-tier categorization (with sarcastic_toxic)
+            "category": improved_result["category"],
+            # Core toxicity
+            "is_toxic": improved_result["is_toxic"],
+            "toxicity_score": improved_result["toxicity_score"],
+            "severity": improved_result["severity"],
+            # Model outputs
+            "toxic_labels": improved_result["labels"],
+            "confidences": label_probs,
+            "max_confidence": max(label_probs.values()) if label_probs else 0.0,
+            # Explanation
+            "reasoning": improved_result["reasoning"],
             # Auxiliary features
-            "is_valid_length": is_valid_length,
-            "has_profanity": has_profanity,
-            "profanity_list": profanity_list,
-            "profanity_intensity": profanity_intensity,
-            "has_sarcasm_indicators": has_sarcasm_indicators,
-            "sarcasm_indicators": sarcasm_indicators,
+            "is_valid_length": preprocessing_result['is_valid'],
+            "has_profanity": preprocessing_result['has_profanity'],
+            "profanity_list": preprocessing_result['profanity_list'],
+            "profanity_intensity": preprocessing_result['profanity_intensity'],
+            "has_sarcasm_indicators": preprocessing_result['has_sarcasm_indicators'],
+            "sarcasm_indicators": preprocessing_result['sarcasm_indicators'],
         }
+        
+        # Add emoji sarcasm info if detected
+        if sarcasm_detected:
+            result["sarcasm_info"] = sarcasm_analysis
+        
+        return result
     
     def classify_batch(self, texts: List[str], batch_size: int = 128) -> List[Dict]:
         """
-        Classify multiple comments with smart thresholds and label weighting.
-        Includes auxiliary features: profanity detection, sarcasm indicators.
-        OPTIMIZED: Increased default batch size from 64 to 128 for better throughput.
+        Classify multiple comments with IMPROVED logic.
+        Uses ImprovedToxicityClassifier for better distinction between
+        criticism and personal attacks. Includes 5-tier categorization.
         
         Args:
             texts: List of comment texts
-            batch_size: Batch size for inference (OPTIMIZED: default 128 for 40% faster processing)
+            batch_size: Batch size for inference (default 128 for optimal throughput)
         
         Returns:
-            List of classification dicts with auxiliary features
+            List of classification dicts with 5-tier category and explanation
         """
         # Preprocess all texts first
         preprocessing_results = self.preprocessor.batch_preprocess(texts, return_features=True)
@@ -310,7 +263,7 @@ class ToxicityAnalyzer:
         )
         all_probs = []
         with torch.no_grad():
-            for i in tqdm(range(0, len(clean_texts), batch_size), desc="Classifying", unit="batch"):
+            for i in tqdm(range(0, len(clean_texts), batch_size), desc="Model Inference", unit="batch"):
                 batch = {k: torch.tensor(v[i:i+batch_size]).to(DEVICE) for k, v in encodings.items()}
                 outputs = self.model(**batch)
                 logits = outputs.logits.cpu().numpy()
@@ -319,58 +272,61 @@ class ToxicityAnalyzer:
         all_probs = np.vstack(all_probs)
         
         results = []
-        for i, text in enumerate(tqdm(texts, desc="Processing results")):
+        for i, text in enumerate(tqdm(texts, desc="Classification")):
             probs = all_probs[i]
             preprocessing_result = preprocessing_results[i]
             
-            # Apply label-specific thresholds
+            # Create probability dict
+            label_probs = {self.labels[j]: float(probs[j]) for j in range(len(self.labels))}
+            
+            # Apply improved thresholds
             toxic_labels = [
                 self.labels[j] for j in range(len(self.labels))
                 if probs[j] > self.label_thresholds[self.labels[j]]
             ]
             
-            # Check if this looks like a video quote/reference
-            is_quote = _is_likely_quote_or_reference(text)
+            # USE IMPROVED CLASSIFIER for better categorization
+            improved_result = self.improved_classifier.classify(
+                text,
+                label_probs,
+                toxic_labels,
+                self.labels
+            )
             
-            # Check if toxic words are only in caps or quoted text (not abusive)
-            if _is_toxic_word_in_caps_or_quotes(text, toxic_labels):
-                is_toxic = False
-                toxic_labels = []
-            else:
-                # Determine true toxicity using combination logic
-                is_toxic = self._determine_toxicity(toxic_labels, is_quote=is_quote)
+            # EMOJI-AWARE SARCASM ANALYSIS
+            sarcasm_analysis = detect_emoji_sarcasm(
+                text,
+                improved_result.get("toxicity_score", 0.0)
+            )
+            
+            # Update category if sarcasm is strong
+            sarcasm_detected = False
+            if sarcasm_analysis.get("is_sarcastic", False) and sarcasm_analysis.get("sarcasm_score", 0) > 0.5:
+                sarcasm_detected = True
+                adjusted_score = sarcasm_analysis.get("adjusted_toxicity_score", improved_result.get("toxicity_score", 0.0))
                 
-                # If comment is clearly quoted/referenced, additional check
-                if is_quote and is_toxic and "threat" not in toxic_labels and "severe_toxic" not in toxic_labels:
-                    is_toxic = False
-                    toxic_labels = []
+                if improved_result["category"] in ["non_toxic", "mild_negative"]:
+                    if adjusted_score > 0.45:
+                        improved_result["category"] = "sarcastic_toxic"
+                        improved_result["is_toxic"] = True
+                        improved_result["toxicity_score"] = adjusted_score
+                elif improved_result["category"] in ["toxic_insult"]:
+                    improved_result["toxicity_score"] = adjusted_score
             
-            # Calculate weighted confidence for true toxic labels
-            if is_toxic:
-                weighted_probs = {self.labels[j]: float(probs[j]) * self.label_weights[self.labels[j]] 
-                                for j in range(len(self.labels)) if self.labels[j] in toxic_labels}
-                max_confidence = max(weighted_probs.values()) if weighted_probs else 0.0
-            else:
-                max_confidence = float(probs.max()) * 0.5  # Discount if not truly toxic
-            
-            # Calculate severity
-            if not is_toxic:
-                severity = 0
-            elif any(l in ["threat", "severe_toxic"] for l in toxic_labels):
-                severity = 3
-            elif any(l in ["insult", "identity_hate"] for l in toxic_labels):
-                severity = 2
-            else:
-                severity = 1
-            
-            results.append({
+            result_item = {
                 "text": text,
                 "clean_text": preprocessing_result['cleaned_text'],
-                "is_toxic": is_toxic,
-                "toxic_labels": toxic_labels,
-                "confidences": {self.labels[j]: float(probs[j]) for j in range(len(self.labels))},
-                "severity": severity,
-                "max_confidence": max_confidence,
+                # NEW: 5-tier categorization (including sarcastic_toxic)
+                "category": improved_result["category"],
+                # Core toxicity
+                "is_toxic": improved_result["is_toxic"],
+                "toxicity_score": improved_result["toxicity_score"],
+                "severity": improved_result["severity"],
+                # Model outputs
+                "toxic_labels": improved_result["labels"],
+                "confidences": label_probs,
+                # Explanation
+                "reasoning": improved_result["reasoning"],
                 # Auxiliary features
                 "is_valid_length": preprocessing_result['is_valid'],
                 "has_profanity": preprocessing_result['has_profanity'],
@@ -378,7 +334,13 @@ class ToxicityAnalyzer:
                 "profanity_intensity": preprocessing_result['profanity_intensity'],
                 "has_sarcasm_indicators": preprocessing_result['has_sarcasm_indicators'],
                 "sarcasm_indicators": preprocessing_result['sarcasm_indicators'],
-            })
+            }
+            
+            # Add emoji sarcasm info if detected
+            if sarcasm_detected:
+                result_item["sarcasm_info"] = sarcasm_analysis
+            
+            results.append(result_item)
         return results
 
 
