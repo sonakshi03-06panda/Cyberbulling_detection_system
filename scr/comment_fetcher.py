@@ -135,7 +135,7 @@ class YouTubeCommentFetcher:
     def fetch_comments(
         self,
         video_url: str,
-        max_results=20000,
+        max_results=100000,
         fetch_replies=True,
         max_replies_per_comment=100
     ):
