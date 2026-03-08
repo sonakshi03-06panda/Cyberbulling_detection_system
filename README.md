@@ -70,15 +70,6 @@ data/
 └── test.csv                  # Test dataset
 ```
 
-## 📋 Environment Setup
-
-Create `.env` file:
-```
-YOUTUBE_API_KEY=your_key_here
-FLASK_ENV=production
-DEBUG=False
-```
-
 ## 🔗 API Endpoints
 
 | Method | Endpoint | Purpose |
@@ -92,10 +83,6 @@ DEBUG=False
 ## 🤝 Contributing
 
 Found a bug? Have a suggestion? Open an issue or submit a pull request!
-
-## 📝 License
-
-MIT License - See LICENSE file for details
 
 ---
 
