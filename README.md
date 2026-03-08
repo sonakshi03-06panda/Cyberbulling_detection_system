@@ -213,10 +213,3 @@ analyzer.classify_batch(texts, batch_size=128)
 
 ## 🌍 Language
 - Application content and interface in English
-- Supports multilingual comment analysis
-
-## 📝 License & Attribution
-Based on the Toxic Comment Classification Challenge dataset from Kaggle.
-
-## 👥 Support & Feedback
-For issues, improvements, or feedback, please refer to the documentation files or contact the development team.
