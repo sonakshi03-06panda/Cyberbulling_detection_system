@@ -25,7 +25,7 @@ def clean_text(text: str, use_advanced_preprocessing: bool = True) -> str:
     Clean and normalize text using advanced preprocessing pipeline.
     
     Args:
-        text: Input text to clean
+        text: Input text to cleaning 
         use_advanced_preprocessing: If True, uses advanced preprocessing; if False, uses basic cleaning
     
     Returns:
