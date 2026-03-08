@@ -55,7 +55,7 @@ class ToxicityReportGenerator:
         return report_path
     
     def _calculate_stats(self, df: pd.DataFrame) -> Dict:
-        """Calculate summary statistics."""
+        """Calculate summary statistics with diverse comment examples."""
         total_comments = len(df)
         toxic_comments = df["is_toxic"].sum()
         toxic_rate = 100 * toxic_comments / total_comments if total_comments > 0 else 0
@@ -72,9 +72,33 @@ class ToxicityReportGenerator:
         # Average confidence
         avg_confidence = df["max_confidence"].mean()
         
-        # Top toxic comments
-        toxic_df = df[df["is_toxic"]].sort_values("max_confidence", ascending=False)
-        top_toxic = toxic_df.head(10)[["text", "toxic_labels", "severity", "max_confidence"]].to_dict("records")
+        # Select diverse examples from each label category + safe comments
+        diverse_comments = []
+        label_mapping = {
+            "toxic": "Toxic Comments - General toxic behavior",
+            "severe_toxic": "Severe Toxicity - Extreme harmful content",
+            "obscene": "Obscene Language - Profanity and vulgar language",
+            "threat": "Threatening Behavior - Threats and intimidation",
+            "insult": "Insulting Language - Personal attacks and insults",
+            "identity_hate": "Identity-based Hate Speech - Discrimination and prejudice"
+        }
+        
+        # Get one example from each toxic label (highest confidence)
+        for label in label_mapping.keys():
+            label_mask = df["toxic_labels"].apply(lambda x: label in x if isinstance(x, list) else False)
+            if label_mask.any():
+                example = df[label_mask].nlargest(1, "max_confidence")[["text", "toxic_labels", "severity", "max_confidence"]]
+                if not example.empty:
+                    comment = example.iloc[0].to_dict()
+                    comment["category"] = label_mapping[label]
+                    diverse_comments.append(comment)
+        
+        # Add a few safe comments (lowest toxicity) for contrast
+        safe_comments = df[df["is_toxic"] == False].nsmallest(3, "max_confidence")[["text", "toxic_labels", "severity", "max_confidence"]]
+        for _, comment in safe_comments.iterrows():
+            comment_dict = comment.to_dict()
+            comment_dict["category"] = "Safe Comments - Non-toxic and constructive content"
+            diverse_comments.append(comment_dict)
         
         return {
             "total_comments": total_comments,
@@ -83,7 +107,8 @@ class ToxicityReportGenerator:
             "severity_counts": severity_counts,
             "label_counts": label_counts,
             "avg_confidence": avg_confidence,
-            "top_toxic": top_toxic
+            "diverse_comments": diverse_comments,
+            "top_toxic": diverse_comments  # Keep for backward compatibility
         }
     
     def _build_html(self, df: pd.DataFrame, url: str, title: str, stats: Dict) -> str:
@@ -273,10 +298,11 @@ class ToxicityReportGenerator:
             </div>
         </div>
         
-        <!-- Top Toxic Comments -->
+        <!-- Diverse Comment Examples -->
         <div class="top-toxic">
-            <h3>🔴 Top {min(10, len(stats['top_toxic']))} Most Toxic Comments</h3>
-            {''.join([self._build_comment_item(c, severity_colors, severity_labels_map) for c in stats['top_toxic']])}
+            <h3>📋 Comment Examples by Category</h3>
+            <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Sample comments representing different toxicity categories and safe content</p>
+            {''.join([self._build_diverse_comment_item(c, severity_colors, severity_labels_map) for c in stats['diverse_comments']])}
         </div>
     </div>
     
@@ -347,6 +373,41 @@ class ToxicityReportGenerator:
                 <span>Labels: {labels_html if labels_html else '<em>generic toxicity</em>'}</span>
                 <span>Severity: <strong style="color: {severity_color}">{severity_label}</strong></span>
                 <span>Confidence: {comment['max_confidence']:.1%}</span>
+            </div>
+        </div>
+        """
+    
+    def _build_diverse_comment_item(self, comment: Dict, severity_colors: Dict, severity_labels_map: Dict) -> str:
+        """Build HTML for a diverse comment example with category header."""
+        severity = comment.get("severity", 0)
+        severity_label = severity_labels_map.get(severity, str(severity))
+        severity_color = severity_colors.get(severity, "#999")
+        category = comment.get("category", "Unknown")
+        
+        labels_html = "".join([
+            f'<span class="badge badge-{label.replace("_", "-")}">{label}</span>'
+            for label in (comment.get("toxic_labels") or [])
+        ])
+        
+        # Color code based on category type
+        if "Safe" in category:
+            border_color = "#4CAF50"
+            bg_color = "#f1f8f5"
+        elif "Severe" in category or "Threat" in category or "Hate" in category:
+            border_color = "#F44336"
+            bg_color = "#ffebee"
+        else:
+            border_color = "#FF9800"
+            bg_color = "#fff3e0"
+        
+        return f"""
+        <div class="comment-item" style="border-left-color: {border_color}; background-color: {bg_color};">
+            <div style="font-weight: bold; color: {border_color}; margin-bottom: 8px; font-size: 13px;">📌 {category}</div>
+            <div class="text">"{comment['text'][:250]}{'...' if len(str(comment.get('text', ''))) > 250 else ''}"</div>
+            <div class="meta">
+                <span>Labels: {labels_html if labels_html else '<em>None</em>'}</span>
+                <span>Severity: <strong style="color: {severity_color}">{severity_label}</strong></span>
+                <span>Confidence: {comment.get('max_confidence', 0):.1%}</span>
             </div>
         </div>
         """
