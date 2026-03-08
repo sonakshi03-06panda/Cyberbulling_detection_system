@@ -136,100 +136,111 @@ class ToxicityReportGenerator:
     <title>{title}</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
+        body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
+            padding: 15px;
             min-height: 100vh;
         }}
         .container {{ 
-            max-width: 1200px; 
+            max-width: 1000px; 
             margin: 0 auto; 
             background: white; 
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            padding: 40px;
+            padding: 25px;
         }}
         h1 {{ 
             color: #333; 
             border-bottom: 3px solid #667eea;
             padding-bottom: 15px;
+            margin-top: 0;
+            font-size: 24px;
         }}
         .subtitle {{
             color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            line-height: 1.4;
         }}
         .stats-grid {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
         }}
         .stat-card {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             text-align: center;
         }}
         .stat-card h3 {{
-            font-size: 14px;
+            font-size: 12px;
             opacity: 0.9;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }}
         .stat-card .value {{
-            font-size: 32px;
+            font-size: 24px;
             font-weight: bold;
         }}
         .stat-card .percentage {{
-            font-size: 12px;
+            font-size: 11px;
             opacity: 0.8;
-            margin-top: 5px;
+            margin-top: 3px;
         }}
         .charts-grid {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 30px;
-            margin-bottom: 40px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
         }}
         .chart-container {{
             background: #f9f9f9;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             border: 1px solid #eee;
         }}
         .chart-container h3 {{
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             color: #333;
+            font-size: 14px;
         }}
         .top-toxic {{
             background: #fff3e0;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             border-left: 4px solid #ff9800;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }}
         .top-toxic h3 {{
             color: #e65100;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }}
+        .top-toxic p {{
+            margin: 0 0 10px 0;
         }}
         .comment-item {{
             background: white;
-            padding: 15px;
-            margin-bottom: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
             border-radius: 6px;
             border-left: 4px solid #f44336;
         }}
         .comment-item .text {{
             font-style: italic;
             color: #333;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            font-size: 13px;
         }}
         .comment-item .meta {{
             display: flex;
-            gap: 15px;
-            font-size: 12px;
+            gap: 12px;
+            font-size: 11px;
             color: #999;
+            flex-wrap: wrap;
         }}
         .badge {{
             display: inline-block;
@@ -244,11 +255,11 @@ class ToxicityReportGenerator:
         .badge-severe {{ background: #f3e5f5; color: #7b1fa2; }}
         .footer {{
             text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
+            margin-top: 20px;
+            padding-top: 15px;
             border-top: 1px solid #eee;
             color: #999;
-            font-size: 12px;
+            font-size: 11px;
         }}
         .severity-0 {{ color: #4CAF50; }}
         .severity-1 {{ color: #FF9800; }}
@@ -290,11 +301,11 @@ class ToxicityReportGenerator:
         <div class="charts-grid">
             <div class="chart-container">
                 <h3>📊 Toxicity Type Distribution</h3>
-                <canvas id="labelChart" height="80"></canvas>
+                <canvas id="labelChart" height="60"></canvas>
             </div>
             <div class="chart-container">
                 <h3>⚠️ Severity Breakdown</h3>
-                <canvas id="severityChart" height="80"></canvas>
+                <canvas id="severityChart" height="60"></canvas>
             </div>
         </div>
         
