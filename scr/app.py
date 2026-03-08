@@ -448,7 +448,7 @@ HTML_TEMPLATE = """
                 </form>
             </div>
             
-            <!-- Right Column: View Reports -->
+            <!-- Right Column: Reports -->
             <div class="section">
                 <h2>View Reports</h2>
                 
