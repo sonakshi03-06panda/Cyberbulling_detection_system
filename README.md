@@ -42,12 +42,72 @@
 - **FastAPI REST API** (Port 8000) - 12 endpoints
 - **Streamlit Dashboard** (Port 8501) - Analytics & monitoring
 
-## � Quick Start
+## 💻 TECH STACK
 
-### Prerequisites
-- Python 3.12
-- YouTube API key ([Get one here](https://developers.google.com/youtube/registering_an_application))
-- 256 MB RAM minimum
+### Machine Learning Stack
+```
+Framework                Version
+─────────────────────────────────
+PyTorch                  2.2.2
+Hugging Face Transform.  4.40.1
+DistilBERT Model         Fine-tuned
+SHAP (Explainability)    0.46.0
+scikit-learn             1.4.2
+```
+
+### Backend & API
+```
+Framework                Version      Purpose
+──────────────────────────────────────────────
+Flask                    2.3.2        Main web app
+FastAPI                  0.104.1      Analytics REST API
+Uvicorn                  0.24.0       ASGI server
+```
+
+### Frontend & Visualization
+```
+Framework                Version      Purpose
+──────────────────────────────────────────────
+Streamlit                1.28.1       Dashboard UI
+Plotly                   5.17.0       Interactive charts
+HTML/CSS/JS              Native       Web interface
+```
+
+### Data & Analysis
+```
+Library                  Version      Purpose
+──────────────────────────────────────────────
+Pandas                   2.2.2        Data manipulation
+NumPy                    1.26.4       Numerical computing
+Matplotlib               3.8.4        Static visualizations
+SciPy                    1.11.2       Scientific computing
+```
+
+### External Integrations
+```
+Service                  Version      Purpose
+──────────────────────────────────────────────
+YouTube Data API v3      2.126.0      Comment fetching
+```
+
+### Utilities
+```
+Library                  Version      Purpose
+──────────────────────────────────────────────
+python-dotenv            1.0.0        Environment config
+emoji                    2.11.0       Emoji handling
+tqdm                     4.66.4       Progress bars
+Pydantic                 2.5.0        Data validation
+requests                 2.31.0       HTTP client
+```
+
+### Development Stack
+```
+Python Version: 3.12.x
+OS Support: Windows, macOS, Linux
+Package Manager: pip
+Virtual Environment: venv/virtualenv
+
 
 ## 📁 Project Structure
 
