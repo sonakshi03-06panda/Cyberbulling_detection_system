@@ -107,7 +107,7 @@ Python Version: 3.12.x
 OS Support: Windows, macOS, Linux
 Package Manager: pip
 Virtual Environment: venv/virtualenv
-
+```
 
 ## 📁 Project Structure
 
