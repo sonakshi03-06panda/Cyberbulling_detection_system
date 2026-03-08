@@ -600,7 +600,7 @@ def analyze():
         
         # If max_comments is 0 or not specified, use default
         if max_comments <= 0:
-            max_comments = 1000
+            max_comments = 100000
             print(f"[DEBUG] Using default max_comments: {max_comments}")
         
         try:
