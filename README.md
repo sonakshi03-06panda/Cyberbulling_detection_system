@@ -1,6 +1,6 @@
 # VibeCheck - Cyberbullying Detection System
 
-> VibeCheck is a web-based tool designed to analyze YouTube video comments in real-time. It uses an optimized Machine Learning model (DistilBERT with fine-tuning) to identify toxic behavior, harassment, and cyberbullying, providing creators and viewers with a comprehensive "vibe" report of the digital environment.
+> VibeCheck is a web-based tool designed to analyze YouTube post comments in real-time. It uses an optimized Machine Learning model (DistilBERT with fine-tuning) to identify toxic behavior, harassment, and cyberbullying, providing creators and viewers with a comprehensive "vibe" report of the digital environment.
 
 **Status**: ✅ Production Ready (v2.2)  
 **Last Updated**: March 2026
