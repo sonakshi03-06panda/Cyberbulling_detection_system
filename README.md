@@ -195,10 +195,4 @@ AI scores are **probabilistic guidance**, not court verdicts. `ToxicBERT` is tra
 
 Leave a ⭐ on the repo! It helps more than you think.
 
-[![GitHub Stars](https://img.shields.io/github/stars/NiketGupta06/vibeCheck?style=social)](https://github.com/NiketGupta06/VibeCheck-CyberBullying-Detection)
-
 ---
-
-<div align="center">
-  <sub>Built with 💙 and a deep hatred of toxic comment sections.</sub>
-</div>
