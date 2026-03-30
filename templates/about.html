@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+
+{% block content %}
+<section class="pt-8 pb-24 bg-surface relative overflow-hidden">
+  <div class="absolute inset-0 opacity-10 vibe-gradient"></div>
+  <div class="max-w-[1440px] mx-auto px-6 md:px-12 relative z-10" data-aos="fade-up">
+    <div class="max-w-3xl mb-16">
+      <h1 class="font-headline text-5xl md:text-6xl text-on-surface mb-6">About VibeCheck</h1>
+      <p class="text-on-surface-variant text-xl leading-relaxed">An AI-powered tool for detecting cyberbullying and toxic content in YouTube comments.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+      <!-- The Problem -->
+      <div class="bg-surface-container-low p-10 rounded-lg custom-shadow stat-card-tilt" data-aos="fade-up" data-aos-delay="0">
+        <span class="material-symbols-outlined text-primary mb-6 text-[40px]">security</span>
+        <h2 class="font-headline text-3xl text-on-surface mb-4">The Problem</h2>
+        <p class="text-on-surface-variant leading-relaxed mb-6">YouTube comment sections are fertile ground for harassment, hate speech, and coordinated abuse. Manual moderation is slow, expensive, and inconsistent. VibeCheck automates toxicity detection at scale — surfacing the worst comments instantly so creators and researchers can act fast.</p>
+      </div>
+
+      <!-- The Model -->
+      <div class="bg-surface-container-low p-10 rounded-lg custom-shadow stat-card-tilt" data-aos="fade-up" data-aos-delay="100">
+        <span class="material-symbols-outlined text-tertiary mb-6 text-[40px]">psychology</span>
+        <h2 class="font-headline text-3xl text-on-surface mb-4">The Model — ToxicBERT</h2>
+        <p class="text-on-surface-variant leading-relaxed mb-6">VibeCheck uses a BERT (<code>bert-base-uncased</code>) model fine-tuned on the <strong>Jigsaw Toxic Comment Classification</strong> dataset. The model scores each comment across 6 toxicity categories:</p>
+        <div class="flex flex-wrap gap-2 mb-6">
+          <span class="bg-error/10 text-error px-3 py-1 rounded-full text-sm font-semibold tracking-wide">Toxic</span>
+          <span class="bg-error/10 text-error px-3 py-1 rounded-full text-sm font-semibold tracking-wide">Severe Toxic</span>
+          <span class="bg-amber-500/10 text-amber-700 px-3 py-1 rounded-full text-sm font-semibold tracking-wide">Obscene</span>
+          <span class="bg-error/10 text-error px-3 py-1 rounded-full text-sm font-semibold tracking-wide">Threat</span>
+          <span class="bg-amber-500/10 text-amber-700 px-3 py-1 rounded-full text-sm font-semibold tracking-wide">Insult</span>
+          <span class="bg-amber-500/10 text-amber-700 px-3 py-1 rounded-full text-sm font-semibold tracking-wide">Identity Hate</span>
+        </div>
+        <p class="text-on-surface-variant text-sm">Each score is a sigmoid probability (0–1). A score above 0.5 indicates the label is predicted positive.</p>
+      </div>
+
+      <!-- Tech Stack -->
+      <div class="bg-surface-container-low p-10 rounded-lg custom-shadow stat-card-tilt" data-aos="fade-up" data-aos-delay="200">
+        <span class="material-symbols-outlined text-secondary mb-6 text-[40px]">terminal</span>
+        <h2 class="font-headline text-3xl text-on-surface mb-4">Tech Stack</h2>
+        <ul class="space-y-4 text-on-surface-variant">
+          <li class="flex items-center gap-3 border-b border-outline-variant/10 pb-2"><span class="text-xl">🐍</span> <strong>Python / Flask</strong> — web framework</li>
+          <li class="flex items-center gap-3 border-b border-outline-variant/10 pb-2"><span class="text-xl">🤗</span> <strong>HuggingFace Transformers</strong> — model serving</li>
+          <li class="flex items-center gap-3 border-b border-outline-variant/10 pb-2"><span class="text-xl">🔥</span> <strong>PyTorch</strong> — inference engine</li>
+          <li class="flex items-center gap-3 border-b border-outline-variant/10 pb-2"><span class="text-xl">📺</span> <strong>YouTube Data API v3</strong> — comment fetching</li>
+          <li class="flex items-center gap-3 border-b border-outline-variant/10 pb-2"><span class="text-xl">📊</span> <strong>Chart.js</strong> — interactive visualizations</li>
+          <li class="flex items-center gap-3 border-b border-outline-variant/10 pb-2"><span class="text-xl">🗄️</span> <strong>SQLite</strong> — analysis history storage</li>
+          <li class="flex items-center gap-3"><span class="text-xl">🚀</span> <strong>Gunicorn</strong> — production WSGI server</li>
+        </ul>
+      </div>
+
+      <!-- Limitations -->
+      <div class="bg-surface-container-low p-10 rounded-lg custom-shadow stat-card-tilt" data-aos="fade-up" data-aos-delay="300">
+        <span class="material-symbols-outlined text-error mb-6 text-[40px]">warning</span>
+        <h2 class="font-headline text-3xl text-on-surface mb-4">Limitations</h2>
+        <ul class="space-y-3 text-on-surface-variant list-disc list-inside marker:text-error">
+          <li>Analysis is limited to <strong>top-level comments</strong> (no reply threads)</li>
+          <li>YouTube API quota limits may restrict large-scale use</li>
+          <li>The model was trained on English text — performance may degrade on other languages</li>
+          <li>AI scores are probabilistic guidance, not definitive verdicts</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Team Section -->
+<section class="py-24 bg-surface-container-lowest border-t border-outline-variant/10 relative z-10">
+  <div class="max-w-[1440px] mx-auto px-6 md:px-12">
+    <div class="text-center mb-16" data-aos="fade-up">
+      <h2 class="font-headline text-4xl text-on-surface mb-4">Meet the Team</h2>
+      <p class="text-on-surface-variant text-lg">The minds behind VibeCheck.</p>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto gap-8 lg:gap-12">
+      <!-- Member 1: Niket Gupta -->
+      <div class="bg-surface p-8 rounded-lg custom-shadow text-center stat-card-tilt" data-aos="fade-up" data-aos-delay="0">
+        <img src="/static/images/Member%201.PNG" alt="Niket Gupta" class="w-32 h-32 rounded-full mx-auto mb-6 shadow-ambient object-cover border-4 border-surface">
+        <h3 class="font-headline text-2xl text-on-surface mb-1">Niket Gupta</h3>
+        <p class="text-primary font-medium text-sm tracking-wide uppercase mb-4">Analysed models & Built Platform</p>
+        <p class="text-on-surface-variant text-sm leading-relaxed mb-6">Designed, fine-tuned, and built the core VibeCheck architecture to scale AI comment moderation.</p>
+        <div class="flex justify-center gap-4">
+          <a href="https://www.linkedin.com/in/niketgupta06/" target="_blank" rel="noopener" class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary-container transition-all shadow-sm" title="LinkedIn"><span class="material-symbols-outlined text-[20px]">link</span></a>
+          <a href="https://github.com/NiketGupta06" target="_blank" rel="noopener" class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary-container transition-all shadow-sm" title="GitHub"><span class="material-symbols-outlined text-[20px]">code</span></a>
+        </div>
+      </div>
+      <!-- Member 2: Sonakshi Panda -->
+      <div class="bg-surface p-8 rounded-lg custom-shadow text-center stat-card-tilt" data-aos="fade-up" data-aos-delay="100">
+        <img src="/static/images/Member%202.png" alt="Sonakshi Panda" class="w-32 h-32 rounded-full mx-auto mb-6 shadow-ambient object-cover border-4 border-surface">
+        <h3 class="font-headline text-2xl text-on-surface mb-1">Sonakshi Panda</h3>
+        <p class="text-primary font-medium text-sm tracking-wide uppercase mb-4">Analysed models & Research</p>
+        <p class="text-on-surface-variant text-sm leading-relaxed mb-6">Conducted deep structural research on NLP model variants and co-authored the official documentation on toxic comment classification.</p>
+        <div class="flex justify-center gap-4">
+          <a href="https://www.linkedin.com/in/sonakshi-panda/" target="_blank" rel="noopener" class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary-container transition-all shadow-sm" title="LinkedIn"><span class="material-symbols-outlined text-[20px]">link</span></a>
+          <a href="https://github.com/sonakshi03-06panda" target="_blank" rel="noopener" class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary-container transition-all shadow-sm" title="GitHub"><span class="material-symbols-outlined text-[20px]">code</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Contact{% endblock %}
+
+{% block content %}
+<section class="pt-8 pb-24 bg-surface relative overflow-hidden min-h-[85vh] flex items-center">
+  <div class="absolute inset-0 opacity-10 vibe-gradient"></div>
+  <div class="max-w-[1440px] w-full mx-auto px-6 md:px-12 relative z-10" data-aos="fade-up">
+    
+    <div class="max-w-3xl mb-16">
+      <h1 class="font-headline text-5xl md:text-6xl text-on-surface mb-6">Contact Us</h1>
+      <p class="text-on-surface-variant text-xl leading-relaxed">Have feedback, a bug report, or questions about VibeCheck? Reach out below.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-start">
+      
+      <!-- Contact Form -->
+      <div class="bg-surface-container-low p-8 md:p-12 rounded-lg custom-shadow" id="contactFormCard" data-aos="fade-right">
+        <h2 class="font-headline text-3xl text-on-surface mb-8">Send a Message</h2>
+        <form id="contactForm" class="space-y-6">
+          <div>
+            <label for="contactName" class="block font-label text-sm font-semibold text-on-surface mb-2 tracking-wide">Name</label>
+            <input type="text" id="contactName" class="w-full bg-surface border-0 ring-1 ring-inset ring-outline-variant/50 focus:ring-2 focus:ring-inset focus:ring-primary rounded-lg px-4 py-3 text-on-surface placeholder:text-outline/50 transition-all font-body shadow-sm" placeholder="Your name" required>
+          </div>
+          <div>
+            <label for="contactEmail" class="block font-label text-sm font-semibold text-on-surface mb-2 tracking-wide">Email</label>
+            <input type="email" id="contactEmail" class="w-full bg-surface border-0 ring-1 ring-inset ring-outline-variant/50 focus:ring-2 focus:ring-inset focus:ring-primary rounded-lg px-4 py-3 text-on-surface placeholder:text-outline/50 transition-all font-body shadow-sm" placeholder="your@email.com" required>
+          </div>
+          <div>
+            <label for="contactMessage" class="block font-label text-sm font-semibold text-on-surface mb-2 tracking-wide">Message</label>
+            <textarea id="contactMessage" rows="5" class="w-full bg-surface border-0 ring-1 ring-inset ring-outline-variant/50 focus:ring-2 focus:ring-inset focus:ring-primary rounded-lg px-4 py-3 text-on-surface placeholder:text-outline/50 transition-all font-body shadow-sm resize-y" placeholder="Describe your feedback or issue…" required></textarea>
+          </div>
+          <button type="submit" class="w-full bg-primary text-on-primary px-8 py-4 rounded-full text-lg font-medium hover:opacity-90 transition-transform transform hover:scale-[1.02] shadow-ambient flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined">send</span> Send Message
+          </button>
+        </form>
+        
+        <div class="hidden text-center py-12" id="contactSuccess">
+          <span class="material-symbols-outlined text-[64px] text-primary mb-6">check_circle</span>
+          <h3 class="font-headline text-3xl text-on-surface mb-4">Message Sent!</h3>
+          <p class="text-on-surface-variant text-lg">Thanks for reaching out! We'll be in touch.</p>
+        </div>
+      </div>
+
+      <!-- Info Cards -->
+      <div class="space-y-6">
+        <div class="bg-surface-container-lowest p-8 rounded-lg custom-shadow stat-card-tilt flex gap-6" data-aos="fade-left" data-aos-delay="0">
+          <div class="w-12 h-12 rounded-full bg-error-container/20 flex-shrink-0 flex items-center justify-center text-error border border-error/10">
+            <span class="material-symbols-outlined text-2xl">bug_report</span>
+          </div>
+          <div>
+            <h3 class="font-headline text-xl text-on-surface mb-2">Bug Reports</h3>
+            <p class="text-on-surface-variant text-sm leading-relaxed">Found something broken? Describe the steps to reproduce and we'll investigate promptly.</p>
+          </div>
+        </div>
+        <div class="bg-surface-container-lowest p-8 rounded-lg custom-shadow stat-card-tilt flex gap-6" data-aos="fade-left" data-aos-delay="100">
+          <div class="w-12 h-12 rounded-full bg-tertiary-container/30 flex-shrink-0 flex items-center justify-center text-tertiary border border-tertiary/10">
+            <span class="material-symbols-outlined text-2xl">lightbulb</span>
+          </div>
+          <div>
+            <h3 class="font-headline text-xl text-on-surface mb-2">Feature Requests</h3>
+            <p class="text-on-surface-variant text-sm leading-relaxed">Ideas for improvement? Suggest new toxicity views, export formats, or UI features.</p>
+          </div>
+        </div>
+        <div class="bg-surface-container-lowest p-8 rounded-lg custom-shadow stat-card-tilt flex gap-6" data-aos="fade-left" data-aos-delay="200">
+          <div class="w-12 h-12 rounded-full bg-primary-container/30 flex-shrink-0 flex items-center justify-center text-primary border border-primary/10">
+            <span class="material-symbols-outlined text-2xl">handshake</span>
+          </div>
+          <div>
+            <h3 class="font-headline text-xl text-on-surface mb-2">Research Collaboration</h3>
+            <p class="text-on-surface-variant text-sm leading-relaxed">Conducting content moderation research? We're open to academic partnerships.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Analyze{% endblock %}
+
+{% block content %}
+<section class="pt-8 pb-24 bg-surface min-h-[85vh] relative flex flex-col items-center justify-center">
+  <div class="absolute inset-0 opacity-10 vibe-gradient"></div>
+  
+  <div class="max-w-4xl w-full mx-auto px-6 relative z-10" data-aos="fade-up">
+    <div class="text-center mb-12">
+      <span class="material-symbols-outlined text-primary text-5xl mb-4">youtube_activity</span>
+      <h1 class="font-headline text-4xl md:text-5xl text-on-surface mb-4">Analyze YouTube Comments</h1>
+      <p class="text-on-surface-variant text-lg">Select a video or paste a URL below to run AI toxicity analysis on up to 2,000 comments.</p>
+    </div>
+
+    <div class="bg-surface-container-lowest p-8 md:p-12 rounded-2xl custom-shadow stat-card-tilt mb-16 relative overflow-hidden">
+      <!-- Ambient glow inside card -->
+      <div class="absolute -top-32 -right-32 w-64 h-64 bg-primary-container/20 rounded-full blur-3xl"></div>
+      
+      {% if not is_authenticated %}
+        <div class="relative z-10 bg-primary-container/20 rounded-xl p-8 text-center mb-8 border border-primary/10">
+          <p class="text-on-surface-variant mb-6 text-lg">Sign in with YouTube to analyze your own videos quickly, or paste any public URL below.</p>
+          <a href="/login" class="inline-flex items-center gap-3 bg-primary text-on-primary px-8 py-3 rounded-full font-medium hover:opacity-90 transition-transform transform hover:scale-105 shadow-sm text-lg">
+            <span class="material-symbols-outlined">login</span> Sign in with YouTube
+          </a>
+        </div>
+      {% endif %}
+
+      <div class="relative z-10">
+        {% if is_authenticated and videos %}
+          <div class="mb-10">
+            <h3 class="font-headline text-2xl text-on-surface mb-6 flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">video_library</span> Your Recent Videos
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {% for video in videos %}
+                <div class="bg-surface border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm hover:shadow-ambient hover:border-primary/30 transition-all group flex flex-col">
+                  <div class="relative w-full aspect-video overflow-hidden">
+                    <img src="{{ video.thumbnail_url }}" alt="Thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                  </div>
+                  <div class="p-5 flex flex-col flex-grow">
+                    <h4 class="font-body text-sm font-semibold text-on-surface line-clamp-2 mb-4 flex-grow" title="{{ video.title }}">{{ video.title }}</h4>
+                    <form method="POST" action="/analyze" class="w-full mt-auto">
+                      <input type="hidden" name="video_id" value="{{ video.video_id }}">
+                      <button type="submit" class="w-full bg-surface-container-high text-on-surface text-sm font-medium py-2.5 rounded-lg hover:bg-primary hover:text-on-primary transition-colors flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">analytics</span> Analyze
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-4 mb-8">
+            <div class="h-px bg-outline-variant/20 flex-grow"></div>
+            <span class="text-sm font-label uppercase tracking-widest text-outline">Or Paste URL</span>
+            <div class="h-px bg-outline-variant/20 flex-grow"></div>
+          </div>
+        {% endif %}
+
+        <form method="POST" action="/analyze" id="analyzeForm" class="space-y-6">
+          <div>
+            <label for="urlInput" class="block font-label text-sm font-semibold text-on-surface mb-2 tracking-wide">YouTube Video URL</label>
+            <div class="relative">
+              <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/60">link</span>
+              <input type="url" name="url" id="urlInput" class="w-full pl-12 pr-4 py-4 bg-surface border-0 ring-1 ring-inset ring-outline-variant/40 focus:ring-2 focus:ring-inset focus:ring-primary rounded-xl text-on-surface placeholder:text-outline/50 transition-all font-body text-lg shadow-sm" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+            </div>
+            <span class="text-xs text-on-surface-variant mt-2 block tracking-wide">Supports youtube.com/watch?v= and youtu.be/ URLs</span>
+          </div>
+
+          {% if error %}
+            <div class="bg-error-container/20 border border-error/20 text-error px-4 py-3 rounded-lg flex items-center gap-3 font-medium">
+              <span class="material-symbols-outlined">error</span> {{ error }}
+            </div>
+          {% endif %}
+
+          <button type="submit" id="submitBtn" class="w-full bg-primary text-on-primary px-8 py-4 rounded-xl text-lg font-medium hover:opacity-90 transition-transform transform hover:scale-[1.01] shadow-ambient flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined">search</span> Run Analysis
+          </button>
+        </form>
+
+        <div class="hidden flex-col items-center justify-center py-12" id="loadingState">
+          <div class="spinner mb-6"></div>
+          <p class="font-headline text-xl text-on-surface mb-2" id="loadingText">Fetching comments…</p>
+          <p class="text-on-surface-variant text-sm">This can take 30–90 seconds for large videos.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Info Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10 shadow-sm" data-aos="fade-up" data-aos-delay="100">
+        <h3 class="font-headline text-lg text-on-surface mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-primary">fact_check</span> Scope</h3>
+        <ul class="space-y-2 text-sm text-on-surface-variant">
+          <li>• Up to 2,000 top-level comments</li>
+          <li>• 6 toxicity scores per comment</li>
+          <li>• Overall toxicity percentage</li>
+        </ul>
+      </div>
+      <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10 shadow-sm" data-aos="fade-up" data-aos-delay="200">
+        <h3 class="font-headline text-lg text-on-surface mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-tertiary">category</span> Categories</h3>
+        <ul class="space-y-2 text-sm text-on-surface-variant flex flex-wrap gap-x-4">
+          <li>• Toxic</li>
+          <li>• Severe Toxic</li>
+          <li>• Obscene</li>
+          <li>• Threat</li>
+          <li>• Insult</li>
+          <li>• Identity Hate</li>
+        </ul>
+      </div>
+      <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10 shadow-sm" data-aos="fade-up" data-aos-delay="300">
+        <h3 class="font-headline text-lg text-on-surface mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-error">warning</span> Rules</h3>
+        <ul class="space-y-2 text-sm text-on-surface-variant">
+          <li>• Video must be public</li>
+          <li>• Comments must be enabled</li>
+          <li>• Analysis may take 1–2 minutes</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}
