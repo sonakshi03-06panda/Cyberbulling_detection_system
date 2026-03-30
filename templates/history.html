@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+
+{% block content %}
+<section class="pt-8 pb-24 bg-surface min-h-[85vh]">
+  <div class="max-w-[1440px] mx-auto px-6 md:px-12" data-aos="fade-up">
+
+    <div class="mb-12">
+      <h1 class="font-headline text-4xl text-on-surface mb-2">Analysis History</h1>
+      <p class="text-on-surface-variant text-lg">All past YouTube video analyses are stored below. Click View to reload a dashboard.</p>
+    </div>
+
+    {% if analyses %}
+    <div class="bg-surface-container-lowest rounded-2xl p-6 md:p-8 custom-shadow border border-outline-variant/10">
+      <div class="overflow-x-auto custom-scrollbar pb-4">
+        <table class="w-full text-left border-collapse min-w-[800px]" id="historyTable">
+          <thead>
+            <tr class="bg-surface shadow-[0_1px_0_0_rgba(113,90,81,0.1)] text-on-surface-variant text-xs uppercase tracking-wider">
+              <th class="py-4 px-4 font-medium rounded-tl-lg w-16">#</th>
+              <th class="py-4 px-4 font-medium">Video</th>
+              <th class="py-4 px-4 font-medium w-32">Date</th>
+              <th class="py-4 px-4 font-medium w-28">Comments</th>
+              <th class="py-4 px-4 font-medium w-28">% Toxic</th>
+              <th class="py-4 px-4 font-medium rounded-tr-lg w-24">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in analyses %}
+            <tr class="border-b border-outline-variant/10 hover:bg-surface-container-low transition-colors group">
+              <td class="py-4 px-4 text-xs font-medium text-outline">{{ loop.index }}</td>
+              <td class="py-4 px-4">
+                <a href="{{ a.video_url }}" target="_blank" rel="noopener" class="text-sm font-semibold text-on-surface hover:text-primary transition-colors flex items-center gap-2" title="{{ a.video_title or a.video_url }}">
+                  <span class="material-symbols-outlined text-[18px] text-outline">smart_display</span>
+                  <span class="line-clamp-1">{{ a.video_title or a.video_url[:60] }}{% if not a.video_title and a.video_url|length > 60 %}…{% endif %}</span>
+                </a>
+              </td>
+              <td class="py-4 px-4 text-sm text-on-surface-variant">{{ a.analyzed_at }}</td>
+              <td class="py-4 px-4 text-sm font-medium text-on-surface">{{ a.total_comments }}</td>
+              <td class="py-4 px-4">
+                <span class="inline-flex items-center px-2.5 py-1.5 rounded-full text-xs font-semibold {% if a.toxic_percent > 30 %}bg-error/10 text-error{% elif a.toxic_percent > 10 %}bg-amber-500/10 text-amber-700{% else %}bg-primary/10 text-primary{% endif %}">
+                  {{ a.toxic_percent }}%
+                </span>
+              </td>
+              <td class="py-4 px-4">
+                <a href="/dashboard?id={{ a.id }}" class="bg-surface-container-high text-on-surface text-xs font-semibold px-4 py-2 rounded-lg hover:bg-primary hover:text-on-primary transition-colors inline-block whitespace-nowrap shadow-sm">
+                  View Data
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-12 text-center max-w-2xl mx-auto custom-shadow stat-card-tilt">
+      <span class="material-symbols-outlined text-outline text-[64px] mb-6">inbox_customize</span>
+      <h2 class="font-headline text-3xl text-on-surface mb-4">No analyses yet</h2>
+      <p class="text-on-surface-variant text-lg mb-8 leading-relaxed">You haven't analyzed any videos yet. Start with a YouTube URL — results will appear here.</p>
+      <a href="/analyze" class="bg-primary text-on-primary px-8 py-3.5 rounded-full text-lg font-medium hover:opacity-90 transition-transform transform hover:scale-105 shadow-ambient inline-flex items-center gap-2">
+        <span class="material-symbols-outlined">analytics</span> Analyze a Video
+      </a>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

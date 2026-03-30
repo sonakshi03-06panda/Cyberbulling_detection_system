@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative min-h-[85vh] flex items-center overflow-hidden hero-gradient">
+  <div class="absolute top-1/4 -right-20 w-96 h-96 floating-blob transition-transform duration-1000"></div>
+  <div class="absolute bottom-1/4 -left-20 w-64 h-64 floating-blob transition-transform duration-1000" style="background: radial-gradient(circle at center, #715a51 0%, #fedfd3 100%);"></div>
+  
+  <div class="max-w-[1440px] w-full mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
+    <div class="lg:col-span-7" data-aos="fade-right">
+      <div class="inline-flex items-center gap-2 bg-primary-container/40 text-on-primary-container px-4 py-1.5 rounded-full text-sm font-semibold mb-6 shadow-ambient">
+        <span class="material-symbols-outlined text-[18px]">psychology</span> ToxicBERT Powered
+      </div>
+      <h1 class="font-headline text-5xl md:text-6xl lg:text-7xl text-on-surface leading-[1.1] mb-8">
+        Detect Cyberbullying <br>
+        <span class="italic font-normal text-primary">on YouTube</span>
+      </h1>
+      <p class="text-on-surface-variant text-lg md:text-xl max-w-xl mb-12 leading-relaxed">
+        Analyze up to 2,000 comments per video. Get instant toxicity scores across 6 categories — visualized and ranked in seconds.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-6">
+        <a href="/analyze" class="bg-primary text-on-primary px-8 py-4 rounded-full text-lg font-medium hover:opacity-90 transition-all custom-shadow flex items-center justify-center gap-2 transform hover:scale-105">
+          <span class="material-symbols-outlined">analytics</span> Analyze a Video
+        </a>
+        <a href="/about" class="flex items-center justify-center gap-2 text-primary font-medium px-8 py-4 group">
+          Learn More
+          <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+        </a>
+      </div>
+    </div>
+    
+    <div class="lg:col-span-5 flex justify-center lg:justify-end mt-12 lg:mt-0" data-aos="fade-left" data-aos-delay="200">
+      <div class="relative w-72 h-72 md:w-96 md:h-96">
+        <div class="absolute inset-0 bg-primary-container/30 rounded-full blur-3xl animate-pulse"></div>
+        <div class="relative w-full h-full rounded-full border border-primary/10 flex items-center justify-center p-8 bg-surface-container-lowest custom-shadow stat-card-tilt">
+          <div class="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-surface relative">
+            <img src="/static/images/vibecheck-circle-illustration.svg" alt="3D Aesthetic Blob" class="w-[120%] h-[120%] object-cover object-center transform hover:scale-110 transition-transform duration-700">
+          </div>
+        </div>
+        <div class="absolute -top-6 -right-6 p-6 bg-surface-container-lowest rounded-lg custom-shadow border border-outline-variant/5 stat-card-tilt z-20">
+          <div class="flex items-center gap-3">
+            <div class="w-3 h-3 rounded-full bg-primary animate-ping"></div>
+            <span class="text-sm font-label uppercase tracking-widest font-semibold">Live Analysis</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-24 bg-surface-container-low overflow-hidden relative">
+  <div class="max-w-[1440px] mx-auto px-6 md:px-12 relative z-10 text-center mb-16" data-aos="fade-up">
+      <h2 class="font-headline text-4xl text-on-surface mb-4">How It Works</h2>
+      <p class="text-on-surface-variant text-lg max-w-2xl mx-auto">Core features powering the VibeCheck engine.</p>
+  </div>
+  <div class="max-w-[1440px] mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+    <div class="bg-surface-container-lowest p-8 rounded-lg custom-shadow stat-card-tilt" data-aos="fade-up" data-aos-delay="0">
+      <span class="material-symbols-outlined text-primary mb-6 text-[32px]">link</span>
+      <h3 class="font-headline text-xl mb-3">Paste Any YouTube URL</h3>
+      <p class="text-on-surface-variant text-sm leading-relaxed">Drop in any public YouTube video link. VibeCheck fetches up to 2,000 top-level comments automatically via the YouTube Data API.</p>
+    </div>
+    <div class="bg-surface-container-lowest p-8 rounded-lg custom-shadow stat-card-tilt" data-aos="fade-up" data-aos-delay="100">
+      <span class="material-symbols-outlined text-primary mb-6 text-[32px]">psychology</span>
+      <h3 class="font-headline text-xl mb-3">AI-Powered Analysis</h3>
+      <p class="text-on-surface-variant text-sm leading-relaxed">Each comment is scored by ToxicBERT — a BERT model fine-tuned on the Jigsaw dataset — across 6 toxicity categories.</p>
+    </div>
+    <div class="bg-surface-container-lowest p-8 rounded-lg custom-shadow stat-card-tilt" data-aos="fade-up" data-aos-delay="200">
+      <span class="material-symbols-outlined text-primary mb-6 text-[32px]">dashboard</span>
+      <h3 class="font-headline text-xl mb-3">Interactive Dashboard</h3>
+      <p class="text-on-surface-variant text-sm leading-relaxed">Instantly see bar charts, stat cards, top toxic comments, top threats, and a full scrollable comment table with flag &amp; hide actions.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Stats Showcase -->
+<section class="py-16 bg-surface border-y border-outline-variant/10">
+  <div class="max-w-[1440px] mx-auto px-6 md:px-12 flex flex-wrap justify-center gap-12 md:gap-24" data-aos="fade-up">
+    <div class="flex flex-col items-center gap-2">
+      <span class="font-headline text-5xl md:text-6xl text-primary font-bold">6</span>
+      <span class="text-on-surface-variant font-medium tracking-wide">Toxicity Categories</span>
+    </div>
+    <div class="flex flex-col items-center gap-2">
+      <span class="font-headline text-5xl md:text-6xl text-tertiary-dim font-bold">2,000</span>
+      <span class="text-on-surface-variant font-medium tracking-wide">Comments per Analysis</span>
+    </div>
+    <div class="flex flex-col items-center gap-2">
+      <span class="font-headline text-5xl md:text-6xl text-on-surface font-bold">100%</span>
+      <span class="text-on-surface-variant font-medium tracking-wide">Free to Use</span>
+    </div>
+  </div>
+</section>
+
+<!-- How-To Section from Benchmark -->
+<section class="py-24 md:py-32 bg-surface">
+  <div class="max-w-[1440px] mx-auto px-6 md:px-12">
+    <div class="flex flex-col md:flex-row justify-between items-end gap-12 mb-24" data-aos="fade-up">
+      <div class="max-w-2xl">
+        <h2 class="font-headline text-4xl md:text-5xl text-on-surface mb-6">How to Use VibeCheck</h2>
+        <p class="text-on-surface-variant text-lg md:text-xl">Three simple steps to transform how you understand digital interactions. We handle the complexity; you keep the peace.</p>
+      </div>
+      <div class="hidden md:block h-[1px] flex-grow mx-12 bg-outline-variant/20"></div>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-16">
+      <div class="group" data-aos="fade-up" data-aos-delay="0">
+        <div class="bg-surface-container-low rounded-lg p-12 transition-all duration-500 hover:bg-surface-container-lowest custom-shadow mb-8 stat-card-tilt">
+          <div class="w-16 h-16 rounded-full bg-tertiary-container flex items-center justify-center mb-8 text-on-tertiary-container">
+            <span class="material-symbols-outlined" style="font-size: 32px;">link</span>
+          </div>
+          <h3 class="font-headline text-2xl mb-4">Sign In or Paste URL</h3>
+          <p class="text-on-surface-variant leading-relaxed">Sign in to select your videos or paste any public YouTube link.</p>
+        </div>
+        <div class="px-4"><span class="font-label text-xs font-bold uppercase tracking-widest text-outline">Step 01</span></div>
+      </div>
+      
+      <div class="group md:mt-12" data-aos="fade-up" data-aos-delay="150">
+        <div class="bg-surface-container-low rounded-lg p-12 transition-all duration-500 hover:bg-surface-container-lowest custom-shadow mb-8 stat-card-tilt">
+          <div class="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center mb-8 text-on-primary-container">
+            <span class="material-symbols-outlined" style="font-size: 32px;">neurology</span>
+          </div>
+          <h3 class="font-headline text-2xl mb-4">AI Analyzes Comments</h3>
+          <p class="text-on-surface-variant leading-relaxed">ToxicBERT instantly scores up to 2,000 top-level comments.</p>
+        </div>
+        <div class="px-4"><span class="font-label text-xs font-bold uppercase tracking-widest text-outline">Step 02</span></div>
+      </div>
+      
+      <div class="group md:mt-24" data-aos="fade-up" data-aos-delay="300">
+        <div class="bg-surface-container-low rounded-lg p-12 transition-all duration-500 hover:bg-surface-container-lowest custom-shadow mb-8 stat-card-tilt">
+          <div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center mb-8 text-on-secondary-container">
+            <span class="material-symbols-outlined" style="font-size: 32px;">verified</span>
+          </div>
+          <h3 class="font-headline text-2xl mb-4">View Your Dashboard</h3>
+          <p class="text-on-surface-variant leading-relaxed">Explore interactive charts and moderate comments.</p>
+        </div>
+        <div class="px-4"><span class="font-label text-xs font-bold uppercase tracking-widest text-outline">Step 03</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA / Quote -->
+<section class="py-32 bg-surface-container-highest overflow-hidden relative">
+  <div class="absolute inset-0 opacity-10 vibe-gradient"></div>
+  <div class="max-w-[1440px] mx-auto px-6 md:px-12 text-center relative z-10" data-aos="zoom-in">
+    <span class="material-symbols-outlined text-primary/30 mb-8" style="font-size: 64px;">security</span>
+    <h2 class="font-headline text-4xl md:text-5xl text-on-surface mb-6">Protect Your Community</h2>
+    <p class="text-on-surface-variant text-xl max-w-2xl mx-auto mb-10">Spot harassment, hate speech, and threats in your YouTube comment section before they escalate.</p>
+    <a href="/analyze" class="bg-primary text-on-primary px-10 py-4 rounded-full text-lg font-medium hover:opacity-90 transition-transform transform hover:scale-105 custom-shadow inline-flex items-center gap-2">
+      <span class="material-symbols-outlined">rocket_launch</span> Start Analyzing Now
+    </a>
+  </div>
+</section>
+
+{% endblock %}

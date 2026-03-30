@@ -1,0 +1,25 @@
+Number of Members - 2
+
+Member 1 - 
+Name - Niket Gupta
+LinkedIn - https://www.linkedin.com/in/niketgupta06/
+Github - https://github.com/NiketGupta06
+Photo - Member 1.PNG
+Role - Analysed multiple models and made the website.
+
+
+Member 2 -
+Name - Sonakshi Panda
+LinkedIn - https://www.linkedin.com/in/sonakshi-panda/
+Github - https://github.com/sonakshi03-06panda
+Role - Analysed multiple models and wrote a research paper on it.
+
+you can change the Role if you want.
+
+In every page, the background looks very plain, add some 3d elememt which will move a little when the mouse is moved and when i scroll down. The elements can be some shape or a character or anything some don't add too many, keep it clean and aesthetic.
+
+In the home page, in the circle under the live analysis is written, add another image.
+Sample homepage idea - "sample home page.png"
+element to add "home page element.png"
+
+Everything is saved inside templates folder.
