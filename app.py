@@ -1,5 +1,7 @@
 import os
 import json
+import re
+import unicodedata
 from datetime import datetime
 
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, session
@@ -7,11 +9,16 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
+from werkzeug.middleware.proxy_fix import ProxyFix
 from googleapiclient.discovery import build
 import torch
 import pandas as pd
 from dotenv import load_dotenv
 import io
+
+import emoji
+import ftfy
+import contractions
 
 import database
 
@@ -32,6 +39,16 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-please-change")
 
+# Hugging Face Spaces proxies requests and embeds the app inside an iframe.
+# 1) Use ProxyFix to correctly determine client IP, Host, and Proto so url_for works correctly
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# 2) Allow session cookies across domains to prevent session dropping during OAuth
+app.config.update(
+    SESSION_COOKIE_SAMESITE="None",
+    SESSION_COOKIE_SECURE=True
+)
+
 @app.context_processor
 def inject_auth():
     return dict(is_authenticated='credentials' in session)
@@ -50,6 +67,89 @@ database.init_db()
 print("Database initialized.", flush=True)
 
 LABELS = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
+
+# ── Preprocessing pipeline (matches training notebook CyberB_multi.ipynb) ────
+LEET_MAP = {
+    'a': '[4@\u00e0\u00e1\u00e2\u00e3\u00e4\u00e5]', 'b': '[8]',      'e': '[3\u20ac\u00e8\u00e9\u00ea\u00eb]',
+    'i': '[1!|\u00ec\u00ed\u00ee\u00ef]',             'o': '[0\u00f2\u00f3\u00f4\u00f5\u00f6]', 's': '[5$]',
+    't': '[7+]',                                       'g': '[69]',      'z': '[2]',
+}
+
+
+def _normalize_unicode(text: str) -> str:
+    text = ftfy.fix_text(text)
+    text = unicodedata.normalize('NFKD', text)
+    text = text.encode('utf-8', 'ignore').decode('utf-8')
+    return text
+
+
+def _replace_urls(text: str) -> str:
+    return re.sub(r'https?://\S+|www\.\S+', '<URL>', text)
+
+
+def _replace_mentions(text: str) -> str:
+    return re.sub(r'@[\w_]+', '<USER>', text)
+
+
+def _split_hashtags(text: str) -> str:
+    def split_tag(match):
+        tag = match.group(1)
+        tag = re.sub(r'([A-Z])', r' \1', tag)
+        return tag.lower()
+    return re.sub(r'#(\w+)', split_tag, text)
+
+
+def _expand_contractions(text: str) -> str:
+    try:
+        return contractions.fix(text)
+    except Exception:
+        return text
+
+
+def _expand_emojis(text: str) -> str:
+    text = emoji.demojize(text, language='en')
+    text = re.sub(r':([a-zA-Z0-9_]+):', r' \1 ', text)
+    text = text.replace('_', ' ')
+    return text
+
+
+def _decode_leetspeak(text: str) -> str:
+    for char, pattern in LEET_MAP.items():
+        text = re.sub(pattern, char, text)
+    return text
+
+
+def _collapse_separators(text: str) -> str:
+    return re.sub(r'(\w)[\.\-_/\\]+(\w)', r'\1\2', text)
+
+
+def _fix_spaced_words(text: str) -> str:
+    return re.sub(r'\b(\w\s){2,}\w\b', lambda m: m.group(0).replace(' ', ''), text)
+
+
+def _collapse_repetitions(text: str) -> str:
+    text = re.sub(r'(.)\1{2,}', r'\1\1', text)
+    text = re.sub(r'([!?.,]){2,}', r'\1', text)
+    return text
+
+
+def preprocess_text(text: str) -> str:
+    """Full preprocessing pipeline — matches training conditions in CyberB_multi.ipynb."""
+    text = str(text)
+    text = _normalize_unicode(text)
+    text = _replace_urls(text)
+    text = _replace_mentions(text)
+    text = _split_hashtags(text)
+    text = text.lower()
+    text = _expand_contractions(text)
+    text = _expand_emojis(text)
+    text = _decode_leetspeak(text)
+    text = _collapse_separators(text)
+    text = _fix_spaced_words(text)
+    text = _collapse_repetitions(text)
+    text = re.sub(r'[^\w\s<>]', ' ', text)   # keep <URL> <USER> tokens
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
 
 # ── YouTube API ───────────────────────────────────────────────────────────────
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY")
@@ -151,9 +251,14 @@ def get_comments(video_id: str, max_comments: int = 2000) -> list:
 
 
 def predict(comment: str) -> dict:
-    """Run ToxicBERT inference on a single comment. Returns dict of 6 label scores."""
+    """Run ToxicBERT inference on a single comment. Returns dict of 6 label scores.
+
+    Applies the same preprocessing pipeline used during model training
+    (CyberB_multi.ipynb) before tokenization.
+    """
+    clean = preprocess_text(comment)
     inputs = tokenizer(
-        comment,
+        clean,
         return_tensors="pt",
         truncation=True,
         padding=True,
@@ -393,6 +498,9 @@ def login():
         include_granted_scopes="true"
     )
     session["state"] = state
+    if hasattr(flow, "code_verifier"):
+        session["code_verifier"] = flow.code_verifier
+        
     return redirect(authorization_url)
 
 
@@ -416,6 +524,10 @@ def oauth2callback():
     if "localhost" not in redirect_uri and redirect_uri.startswith("http://"):
         redirect_uri = redirect_uri.replace("http://", "https://", 1)
     flow.redirect_uri = redirect_uri
+    
+    # Restore the code_verifier if it was saved in the session (PKCE)
+    if session.get("code_verifier"):
+        flow.code_verifier = session["code_verifier"]
 
     authorization_response = request.url
 
